@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "PickleParty",
+    "slug": "pickleparty",
+    "scheme": "pickleparty",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#160A2B",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#160A2B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.pickleparty",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "app.pickleparty",
+      "adaptiveIcon": {
+        "backgroundColor": "#160A2B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

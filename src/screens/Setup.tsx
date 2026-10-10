@@ -1,0 +1,126 @@
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { Format, ScoringSystem, Team } from '../game/scoring';
+import { Button, Chip, Label, Screen } from '../ui/components';
+import { colors, radius, teamColors } from '../ui/theme';
+import type { Navigate } from './routes';
+
+const TEAM_NAMES = [
+  'Dink Floyd',
+  'The Big Dills',
+  'Kitchen Bandits',
+  'Net Ninjas',
+  'Paddle Daddies',
+  'Lob Squad',
+  'Brine Time',
+  'Third Shot Drops',
+  'Erne Your Keep',
+  'Volley Llamas',
+  'Pickle Rickers',
+  'Dill With It',
+  'Spice Girls',
+  'Smash Brothers',
+  'Kitchen Sink',
+];
+
+const randomName = (exclude: string) => {
+  const pool = TEAM_NAMES.filter((n) => n !== exclude);
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+export function Setup({ go, back }: { go: Navigate; back: () => void }) {
+  const [names, setNames] = useState<[string, string]>(() => {
+    const a = randomName('');
+    return [a, randomName(a)];
+  });
+  const [format, setFormat] = useState<Format>('doubles');
+  const [scoring, setScoring] = useState<ScoringSystem>('sideout');
+  const [target, setTarget] = useState(11);
+  const [firstServer, setFirstServer] = useState<Team>(0);
+
+  const setName = (team: Team, value: string) =>
+    setNames((prev) => {
+      const next = [...prev] as [string, string];
+      next[team] = value;
+      return next;
+    });
+
+  const start = () => {
+    const teamNames = names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string];
+    go({ name: 'match', config: { format, scoring, target, teamNames }, firstServer });
+  };
+
+  return (
+    <Screen title="New Match" onBack={back}>
+      {([0, 1] as Team[]).map((t) => (
+        <View key={t} style={{ gap: 6 }}>
+          <Label>Team {t + 1}</Label>
+          <View style={styles.nameRow}>
+            <TextInput
+              value={names[t]}
+              onChangeText={(v) => setName(t, v)}
+              maxLength={24}
+              placeholder={`Team ${t + 1}`}
+              placeholderTextColor={colors.muted}
+              style={[styles.input, { borderColor: teamColors[t] }]}
+            />
+            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t]))} />
+          </View>
+        </View>
+      ))}
+
+      <Label>Format</Label>
+      <View style={styles.row}>
+        <Chip label="Doubles" selected={format === 'doubles'} onPress={() => setFormat('doubles')} />
+        <Chip label="Singles" selected={format === 'singles'} onPress={() => setFormat('singles')} />
+      </View>
+
+      <Label>Scoring</Label>
+      <View style={styles.row}>
+        <Chip label="Classic side-out" selected={scoring === 'sideout'} onPress={() => setScoring('sideout')} />
+        <Chip label="Rally scoring" selected={scoring === 'rally'} onPress={() => setScoring('rally')} />
+      </View>
+
+      <Label>Play to</Label>
+      <View style={styles.row}>
+        {[7, 11, 15, 21].map((n) => (
+          <Chip key={n} label={String(n)} selected={target === n} onPress={() => setTarget(n)} />
+        ))}
+      </View>
+      <Text style={styles.hint}>Win by 2. Shut out the other team to PICKLE them. 🥒</Text>
+
+      <Label>First serve</Label>
+      <View style={styles.row}>
+        {([0, 1] as Team[]).map((t) => (
+          <Chip
+            key={t}
+            label={names[t] || `Team ${t + 1}`}
+            color={teamColors[t]}
+            selected={firstServer === t}
+            onPress={() => setFirstServer(t)}
+          />
+        ))}
+      </View>
+
+      <Button label="Let's Dink 🥒" onPress={start} style={{ marginTop: 12 }} />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  nameRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  input: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderRadius: radius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  hint: { color: colors.muted, fontSize: 14 },
+});
