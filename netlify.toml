@@ -1,0 +1,13 @@
+# Netlify builds the web version of the app straight from this repo.
+[build]
+  command = "npm run build:web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Single-page app: send every path to index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
