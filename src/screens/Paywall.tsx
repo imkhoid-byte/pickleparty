@@ -22,7 +22,7 @@ const HEADLINES: Record<PaywallReason, { emoji: string; title: string; sub: stri
   trialEnded: {
     emoji: '⏰',
     title: 'Your Pro trial ended',
-    sub: 'Your stats are all still saved. Keep Pro to keep the rivalries going.',
+    sub: 'Your stats are all still saved, and the Classic announcer has taken over. Keep Pro to keep the rivalries and the silly voices going.',
   },
   crewStats: { emoji: '⚔️', title: 'Settle it for good', sub: 'Head-to-head records, streaks and the Hall of Shame.' },
   history: { emoji: '📜', title: 'Every game, forever', sub: 'Free keeps your latest 10. Pro keeps them all.' },
@@ -30,6 +30,7 @@ const HEADLINES: Record<PaywallReason, { emoji: string; title: string; sub: stri
   roundRobin: { emoji: '🏟️', title: 'Run open play like a pro', sub: 'Rotating partners, fair sit-outs, live standings.' },
   pack: { emoji: '🃏', title: 'Every pack. Every drop.', sub: 'All Party Packs today, plus new ones as they land.' },
   customCards: { emoji: '✏️', title: 'Your crew, your cards', sub: 'Put your inside jokes in the deck.' },
+  voices: { emoji: '🐿️', title: 'Bring back the voices', sub: 'Squeaky Pickle and Big Dill call every penalty by name.' },
   upgrade: { emoji: '👑', title: 'PickleParty Pro', sub: 'For crews who play every week.' },
 };
 
@@ -40,6 +41,7 @@ const BENEFITS = [
   ['🏟️', 'Round Robin', 'Run open play: partners, sit-outs, standings'],
   ['🃏', 'Every Party Pack', 'Plus new packs as they drop'],
   ['✏️', 'Custom cards', "Your crew's inside jokes, in the deck"],
+  ['🐿️', 'Announcer voices', 'Squeaky Pickle and Big Dill (Classic is free)'],
 ];
 
 export function Paywall({ reason }: { reason: PaywallReason }) {

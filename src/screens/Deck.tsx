@@ -7,6 +7,7 @@ import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
 import { CUSTOM_PACK, Card, CardKind, PACKS, drawWithTeaser } from '../game/cards';
 import { renderPenalty } from '../game/spice';
+import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import { Button, Screen } from '../ui/components';
 import { colors, radius } from '../ui/theme';
@@ -33,7 +34,7 @@ export function Deck() {
     setDrawn({ card: next.card, text, locked: next.locked });
     announce(
       { emoji: '🃏', title: KIND_STYLE[next.card.kind].label.toLowerCase(), body: text, sound: 'whoosh' },
-      { sound: settings.sound, voice: settings.voice, announcer: settings.announcer },
+      { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) },
     );
     Animated.spring(flip, { toValue: 1, friction: 6, useNativeDriver: true }).start();
   };

@@ -20,6 +20,7 @@ import {
 } from '../game/party';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
+import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
@@ -84,7 +85,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   /** Show a prompt and announce it out loud. */
   const show = (p: Shown) => {
     setPrompt(p);
-    announce(p, { sound: settings.sound, voice: settings.voice, announcer: settings.announcer });
+    announce(p, { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) });
   };
   const toggleAudio = () => {
     if (audioOn) hush();
@@ -97,7 +98,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   useEffect(() => {
     if (prompt !== WATER_BREAK) return;
     lastWaterBreak = pendingWaterBreak(history) ?? lastWaterBreak;
-    announce(WATER_BREAK, { sound: settings.sound, voice: settings.voice, announcer: settings.announcer });
+    announce(WATER_BREAK, { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

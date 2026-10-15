@@ -19,10 +19,12 @@ export interface Announcer {
   accent?: string;
   /** Pitch to use instead when no male voice is installed (deepens the default voice). */
   fallbackPitch?: number;
+  /** Needs Pro (or the free trial). */
+  pro?: boolean;
 }
 
 export const ANNOUNCERS: Announcer[] = [
-  { id: 'squeaky', label: 'Squeaky Pickle', emoji: '🐿️', blurb: 'A very small, very excited pickle.', pitch: 1.9, rate: 1.1 },
+  { id: 'squeaky', label: 'Squeaky Pickle', emoji: '🐿️', blurb: 'A very small, very excited pickle.', pitch: 1.9, rate: 1.1, pro: true },
   {
     id: 'bigdill',
     label: 'Big Dill',
@@ -33,6 +35,7 @@ export const ANNOUNCERS: Announcer[] = [
     male: true,
     accent: 'en-GB',
     fallbackPitch: 0.55,
+    pro: true,
   },
   { id: 'classic', label: 'Classic', emoji: '📢', blurb: 'Just the facts.', pitch: 1, rate: 1 },
 ];

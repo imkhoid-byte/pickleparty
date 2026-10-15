@@ -8,7 +8,7 @@ import { ANNOUNCERS } from '../audio/personas';
 import { packsInSeason } from '../game/cards';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
-import { autoPaywall, canUsePack } from '../monetization/entitlements';
+import { autoPaywall, canUseAnnouncer, canUsePack, usableAnnouncer } from '../monetization/entitlements';
 import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
@@ -20,6 +20,8 @@ export function Home() {
   const [askWild, setAskWild] = useState(false);
   const champ = leaderboard(history)[0];
   const pickles = history.filter((g) => g.pickled).length;
+  // Free players hear Classic; their own pick comes back if they go Pro.
+  const announcer = usableAnnouncer(settings.announcer, access);
 
   // The only automatic paywall: once, right after the free trial ends.
   useEffect(() => {
@@ -79,23 +81,28 @@ export function Home() {
       </View>
       {settings.voice && (
         <View style={styles.row}>
-          {ANNOUNCERS.map((a) => (
-            <Chip
-              key={a.id}
-              label={`${a.emoji} ${a.label}`}
-              selected={settings.announcer === a.id}
-              color={colors.sky}
-              onPress={() => {
-                updateSettings({ announcer: a.id });
-                previewAnnouncer(a.id);
-              }}
-            />
-          ))}
+          {ANNOUNCERS.map((a) => {
+            const locked = !canUseAnnouncer(a.id, access);
+            return (
+              <Chip
+                key={a.id}
+                label={`${locked ? '🔒' : a.emoji} ${a.label}`}
+                selected={announcer === a.id}
+                color={colors.sky}
+                onPress={() => {
+                  // A locked voice still plays its sample, then offers Pro.
+                  previewAnnouncer(a.id);
+                  if (locked) openPaywall('voices');
+                  else updateSettings({ announcer: a.id });
+                }}
+              />
+            );
+          })}
         </View>
       )}
       <Text style={styles.muted}>
         {settings.voice
-          ? `${ANNOUNCERS.find((a) => a.id === settings.announcer)?.blurb ?? ''} Calls out penalties by team name. Tap one to hear it.`
+          ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out penalties by team name. Tap one to hear it.`
           : 'Calls out penalties by team name, so nobody has to check the phone.'}
       </Text>
       {!settings.ageConfirmed && (

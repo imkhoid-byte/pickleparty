@@ -6,6 +6,7 @@
 //   - Pro (subscription) unlocks everything; packs can also be bought one by one.
 //   - Free players keep all their games, but only the latest 10 are visible.
 
+import { ANNOUNCERS, AnnouncerId } from '../audio/personas';
 import { PACKS, PackId } from '../game/cards';
 
 export const TRIAL_DAYS = 14;
@@ -50,6 +51,18 @@ export function usablePacks(active: PackId[], access: Access, ownedPacks: PackId
   return usable.length > 0 ? usable : ['classic'];
 }
 
+export function canUseAnnouncer(id: AnnouncerId, access: Access): boolean {
+  return access.isPro || !ANNOUNCERS.find((a) => a.id === id)?.pro;
+}
+
+/**
+ * The announcer that actually speaks. Free players get Classic; their pick is
+ * kept in settings, so it comes back as soon as they go Pro.
+ */
+export function usableAnnouncer(id: AnnouncerId, access: Access): AnnouncerId {
+  return canUseAnnouncer(id, access) ? id : 'classic';
+}
+
 export function visibleHistory<T>(history: T[], access: Access): { shown: T[]; hidden: number } {
   if (access.isPro) return { shown: history, hidden: 0 };
   return {
@@ -66,6 +79,7 @@ export type PaywallReason =
   | 'roundRobin'
   | 'pack'
   | 'customCards'
+  | 'voices'
   | 'upgrade';
 
 /**

@@ -7,6 +7,7 @@ import {
   autoPaywall,
   canUsePack,
   computeAccess,
+  usableAnnouncer,
   usablePacks,
   visibleHistory,
 } from '../../monetization/entitlements';
@@ -74,5 +75,18 @@ describe('teasers and Date Night', () => {
     for (const c of CARDS.filter((x) => x.pack === 'datenight')) {
       expect(renderPenalty(c.text, 'chill', () => 0)).not.toMatch(/\bsips?\b/);
     }
+  });
+});
+
+describe('announcer voices', () => {
+  it('gives the silly voices during the trial and Classic after it', () => {
+    const trial = computeAccess({ trialStartedAt: start, subscribed: false, now: start });
+    const free = computeAccess({ trialStartedAt: start, subscribed: false, now: start + (TRIAL_DAYS + 1) * DAY });
+    const paid = computeAccess({ trialStartedAt: start, subscribed: true, now: start + (TRIAL_DAYS + 1) * DAY });
+    expect(usableAnnouncer('squeaky', trial)).toBe('squeaky');
+    expect(usableAnnouncer('squeaky', free)).toBe('classic');
+    expect(usableAnnouncer('bigdill', free)).toBe('classic');
+    expect(usableAnnouncer('classic', free)).toBe('classic');
+    expect(usableAnnouncer('bigdill', paid)).toBe('bigdill');
   });
 });
