@@ -55,12 +55,12 @@ export function momentRallyWinner(id: MomentId, doer: Team): Team {
 
 // {who} is the team that did it, {them} the other team.
 const MOMENT_TEXT: Record<MomentId, { title: string; body: string; sound: SoundId }> = {
-  net: { title: 'Net Tax', body: '{who} fed the net. Net tax: {who}, {sips:1}.', sound: 'sadtrombone' },
-  ace: { title: 'Ace!', body: '{who} aced {them}. {them}, {sips:1}.', sound: 'boing' },
-  kitchen: { title: 'Kitchen Fault', body: 'Get out of the kitchen! {who}, {sips:1}.', sound: 'honk' },
+  net: { title: 'Net Tax', body: '{who} fed the net. Pay the tax: {sips:1}.', sound: 'sadtrombone' },
+  ace: { title: 'Ace!', body: 'Untouchable serve from {who}. {them}, {sips:1}.', sound: 'boing' },
+  kitchen: { title: 'Kitchen Fault', body: 'Toes over the line! {who}, {sips:1}.', sound: 'honk' },
   erne: { title: 'Highlight Reel', body: 'Legendary shot by {who}! {them}, {sips:3}.', sound: 'airhorn' },
   longRally: { title: 'Dink War', body: '{who} won a movie of a rally. {them}, {sips:1}. Everyone else too.', sound: 'kazoo' },
-  bodyShot: { title: 'Body Shot', body: '{who} tagged {them}. Payback: {who}, {sips:1}.', sound: 'bonk' },
+  bodyShot: { title: 'Body Shot', body: '{them} got tagged. Payback: {who}, {sips:1}.', sound: 'bonk' },
   wayOut: { title: 'Launched It', body: 'That ball is in orbit. {who}, {sips:2}.', sound: 'slideup' },
 };
 
@@ -112,7 +112,7 @@ export function promptForEvents(
       return {
         emoji: '🥒',
         title: 'PICKLED!',
-        body: f('{loser} got skunked. Pickle Penalty: {loser}, {finish}. Then a lap of shame.', { loser }),
+        body: f('{loser} got skunked! Pickle Penalty: {finish}, then a lap of shame.', { loser }),
         big: true,
         sound: 'airhorn',
       };
@@ -120,7 +120,7 @@ export function promptForEvents(
     return {
       emoji: '🏆',
       title: winsTitle(name(over.winner)),
-      body: f('{loser}, {sips:2}. {winner} pick the next house rule.', { loser, winner: name(over.winner) }),
+      body: f('{loser}, {sips:2}. The winners pick the next house rule.', { loser }),
       big: true,
       sound: 'kazoo',
     };
@@ -131,7 +131,7 @@ export function promptForEvents(
     return {
       emoji: '👀',
       title: 'Pickle Watch',
-      body: f('{team} has zero points. Score one now or face the Pickle Penalty.', { team: name(watch.team) }),
+      body: f('{team} has zero points. Score one now or get pickled.', { team: name(watch.team) }),
       sound: 'drumroll',
     };
   }
@@ -177,7 +177,7 @@ export function promptForEvents(
     return {
       emoji: '🔄',
       title: 'Side Out',
-      body: f("{team} lost the serve. {team}'s server, {sips:1}.", { team: name(other(sideOut.to)) }),
+      body: f('{team} lost the serve. Server, {sips:1}.', { team: name(other(sideOut.to)) }),
       sound: 'slidedown',
     };
   }
@@ -206,7 +206,7 @@ export function waterBreakDue(history: GameRecord[], now: number): string | null
 
 export const WATER_BREAK: PartyPrompt = {
   emoji: '💧',
-  title: 'Water Break',
+  title: 'Hydration Break',
   body: 'Two games down. Everybody drinks a full glass of water before the first serve.',
   sound: 'whoosh',
 };

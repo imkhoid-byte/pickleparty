@@ -5,7 +5,7 @@ import { Animated, Share, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../AppState';
 import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
-import { CUSTOM_PACK, Card, CardKind, PACKS, drawWithTeaser } from '../game/cards';
+import { CARD_KIND_LABEL, CUSTOM_PACK, Card, CardKind, PACKS, drawWithTeaser } from '../game/cards';
 import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
@@ -13,10 +13,10 @@ import { Button, Screen } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
 const KIND_STYLE: Record<CardKind, { label: string; color: string }> = {
-  dare: { label: 'DARE', color: colors.pink },
-  rule: { label: 'HOUSE RULE', color: colors.orange },
-  trick: { label: 'TRICK SHOT', color: colors.sky },
-  vote: { label: 'GROUP VOTE', color: colors.pickle },
+  dare: { label: CARD_KIND_LABEL.dare.toUpperCase(), color: colors.pink },
+  rule: { label: CARD_KIND_LABEL.rule.toUpperCase(), color: colors.orange },
+  trick: { label: CARD_KIND_LABEL.trick.toUpperCase(), color: colors.sky },
+  vote: { label: CARD_KIND_LABEL.vote.toUpperCase(), color: colors.pickle },
 };
 
 export function Deck() {
@@ -33,7 +33,7 @@ export function Deck() {
     const text = renderPenalty(next.card.text, settings.spice);
     setDrawn({ card: next.card, text, locked: next.locked });
     announce(
-      { emoji: '🃏', title: KIND_STYLE[next.card.kind].label.toLowerCase(), body: text, sound: 'whoosh' },
+      { emoji: '🃏', title: CARD_KIND_LABEL[next.card.kind], body: text, sound: 'whoosh' },
       { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) },
     );
     Animated.spring(flip, { toValue: 1, friction: 6, useNativeDriver: true }).start();
@@ -88,7 +88,7 @@ export function Deck() {
           label="📣 Send to the group chat"
           variant="ghost"
           onPress={() =>
-            Share.share({ message: `🃏 ${drawn.text}\n— PickleParty ${HASHTAG}\n${APP_LINK}` }).catch(() => {})
+            Share.share({ message: `🃏 ${CARD_KIND_LABEL[drawn.card.kind]}: ${drawn.text}\n— PickleParty ${HASHTAG}\n${APP_LINK}` }).catch(() => {})
           }
         />
       )}

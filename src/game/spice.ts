@@ -75,5 +75,7 @@ export function renderPenalty(text: string, spice: Spice, rng: () => number = Ma
     })
     .replace(/\{finish\}/g, () =>
       spice === 'chill' ? 'run a lap around the court doing the pickle dance' : `take a big gulp${act(WILD_FINALES)}`,
-    );
+    )
+    // A penalty that starts a sentence ("Forget? take 2 sips.") gets a capital letter.
+    .replace(/([.?!]\s+)([a-z])/g, (_, gap: string, c: string) => gap + c.toUpperCase());
 }

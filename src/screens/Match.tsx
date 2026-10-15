@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../AppState';
 import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
-import { Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
+import { CARD_KIND_LABEL, Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
 import {
   MOMENTS,
   MomentId,
@@ -142,7 +142,7 @@ export function Match({
     const who = names[lastLoser ?? (Math.random() < 0.5 ? 0 : 1)];
     show({
       emoji: locked ? '🔒' : '🃏',
-      title: locked ? `Sneak peek: ${pack?.name}` : 'Party Card',
+      title: locked ? `Sneak peek: ${pack?.name}` : CARD_KIND_LABEL[card.kind],
       body: addressCard(renderPenalty(card.text, spice), card.kind, who),
       card: true,
       lockedPack: locked ? pack?.name : undefined,
@@ -202,7 +202,8 @@ export function Match({
           accessibilityHint="Draw a different house rule"
         >
           <Text style={styles.ruleText} numberOfLines={3}>
-            📜 {houseRuleText}
+            📜 <Text style={styles.ruleLabel}>House rule: </Text>
+            {houseRuleText}
           </Text>
           <Text style={styles.ruleHint}>tap for new rule</Text>
         </Pressable>
@@ -378,6 +379,7 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.orange,
   },
   ruleText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  ruleLabel: { color: colors.orange, fontWeight: '900' },
   ruleHint: { color: colors.muted, fontSize: 11, marginTop: 4, textAlign: 'right' },
   call: {
     color: colors.text,

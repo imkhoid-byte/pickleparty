@@ -69,7 +69,33 @@ describe('promptForEvents', () => {
     expect(waterBreakDue([game('0', 60 * 24), game('1', 1)], now)).toBeNull();
   });
   it('fills moment templates', () => {
-    expect(momentPrompt('net', 'Sam', 'tipsy').body).toBe('Sam fed the net. Net tax: Sam, take 1 sip.');
+    expect(momentPrompt('net', 'Sam', 'tipsy').body).toBe('Sam fed the net. Pay the tax: take 1 sip.');
+  });
+});
+
+describe('read aloud', () => {
+  it('never reads a card label twice', () => {
+    for (const card of CARDS) expect(card.text).not.toMatch(/^(HOUSE RULE|VOTE|GROUP VOTE|TRICK SHOT|DARE):/i);
+    expect(speechText({ title: 'Dare', body: 'DARE: Sing.' })).toBe('Dare! Sing.');
+  });
+  it('capitalizes a penalty that starts a sentence', () => {
+    expect(renderPenalty('Forget? {sips:2}.', 'tipsy')).toBe('Forget? Take 2 sips.');
+  });
+  it('never repeats a team name in an automatic prompt', () => {
+    const names = ['Dinkers', 'Bangers'];
+    const events = [
+      [{ type: 'gameOver', winner: 0, pickled: true }],
+      [{ type: 'gameOver', winner: 0, pickled: false }],
+      [{ type: 'pickleWatch', team: 1 }],
+      [{ type: 'streak', team: 0, length: 4 }],
+      [{ type: 'gamePoint', team: 0 }],
+      [{ type: 'sideOut', to: 1 }],
+    ] as Parameters<typeof promptForEvents>[0][];
+    const texts = [
+      ...events.map((e) => speechText(promptForEvents(e, state, 'tipsy', () => 0)!)),
+      ...MOMENTS.map((m) => speechText(momentPrompt(m.id, 'Dinkers', 'tipsy', 'Bangers'))),
+    ];
+    for (const t of texts) for (const n of names) expect(t.split(n).length - 1).toBeLessThanOrEqual(1);
   });
 });
 
@@ -88,7 +114,7 @@ describe('cards', () => {
 describe('announcer text', () => {
   it('names the team that has to act in every moment', () => {
     const p = momentPrompt('ace', 'Lob Squad', 'tipsy', 'Dink Floyd');
-    expect(p.body).toBe('Lob Squad aced Dink Floyd. Dink Floyd, take 1 sip.');
+    expect(p.body).toBe('Untouchable serve from Lob Squad. Dink Floyd, take 1 sip.');
     expect(p.sound).toBe('boing');
   });
   it('attaches a sound to big moments', () => {
@@ -98,7 +124,7 @@ describe('announcer text', () => {
       'tipsy',
     );
     expect(p?.sound).toBe('airhorn');
-    expect(p?.body).toContain('Bangers, take a big gulp');
+    expect(p?.body).toContain('Bangers got skunked! Pickle Penalty: take a big gulp');
   });
   it('reads naturally', () => {
     expect(speechText({ title: '🥒 PICKLED!', body: 'Mike & Sara won 11-0 — wow.' })).toBe(
