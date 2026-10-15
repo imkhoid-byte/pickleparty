@@ -65,36 +65,35 @@ def airhorn():
     return np.concatenate([blast(0.22), silence(0.06), blast(0.22), silence(0.06), blast(0.75)])
 
 
-def fanfare():
-    notes = [(523, 0.12), (659, 0.12), (784, 0.12), (1047, 0.6)]
+def kazoo(freq, x, vibrato=6.0, depth=0.025):
+    """Buzzy kazoo-ish tone: a pulse wave with a wobble, slightly nasal."""
+    f = freq * (1 + depth * np.sin(2 * np.pi * vibrato * x))
+    phase = np.cumsum(np.broadcast_to(f, x.shape) / RATE) % 1
+    pulse = np.where(phase < 0.18, 1.0, -0.22)
+    return lowpass(pulse + 0.3 * saw(f, x), 0.25)
+
+
+def kazoo_fanfare():
+    """Ta-da on a kazoo: deliberately goofy."""
     parts = []
-    for f, d in notes:
+    for f, d in [(392, 0.13), (523, 0.13), (659, 0.13), (784, 0.65)]:
         x = t(d)
-        s = 0.6 * square(f, x) + 0.4 * np.sin(2 * np.pi * f * x)
-        parts.append(lowpass(s, 0.3) * env(len(x), 0.005, 0.05) * np.exp(-x * 1.5))
+        parts.append(kazoo(f, x, vibrato=7 if d > 0.5 else 0, depth=0.03) * env(len(x), 0.01, 0.06))
+        parts.append(silence(0.02))
     return np.concatenate(parts)
 
 
 def sad_trombone():
+    """Wah wah wah waaaah, extra wobbly."""
     parts = []
-    for f, d in [(392, 0.32), (370, 0.32), (349, 0.32), (330, 1.0)]:
+    for f, d in [(370, 0.34), (349, 0.34), (330, 0.34), (311, 1.1)]:
         x = t(d)
-        wobble = 1 + (0.03 * np.sin(2 * np.pi * 5 * x) if d > 0.5 else 0)
-        bend = np.linspace(1, 0.97, len(x)) if d > 0.5 else 1
-        s = lowpass(saw(f * wobble * bend, x), 0.12)
-        parts.append(s * env(len(x), 0.03, 0.12))
+        long = d > 0.5
+        bend = np.linspace(1, 0.93, len(x)) if long else np.linspace(1.02, 1, len(x))
+        # The last note droops and wobbles in pitch: that's the joke.
+        tone = kazoo(f * bend, x, vibrato=6 if long else 0, depth=0.045 if long else 0)
+        parts.append(tone * env(len(x), 0.03, 0.15))
     return np.concatenate(parts)
-
-
-def ding():
-    x = t(0.9)
-    s = np.sin(2 * np.pi * 1320 * x) + 0.4 * np.sin(2 * np.pi * 2640 * x) + 0.2 * np.sin(2 * np.pi * 3960 * x)
-    return s * np.exp(-x * 5) * env(len(x), 0.002, 0.05)
-
-
-def buzzer():
-    x = t(0.7)
-    return lowpass(square(110, x) + 0.5 * square(112, x), 0.4) * env(len(x), 0.01, 0.06)
 
 
 def whoosh():
@@ -115,23 +114,53 @@ def drumroll():
     return np.concatenate(hits + [crash])
 
 
-def zap():
-    x = t(0.3)
-    f = np.linspace(1800, 200, len(x))
-    return square(f, x) * np.exp(-x * 8) * env(len(x), 0.002, 0.03)
+def boing():
+    """Cartoon spring."""
+    x = t(0.7)
+    f = 220 * (1 + 0.6 * np.exp(-x * 6) * np.sin(2 * np.pi * 14 * x)) + 120 * np.exp(-x * 3)
+    return np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-x * 4) * env(len(x), 0.003, 0.05)
+
+
+def slide_whistle(up=True, d=0.6):
+    x = t(d)
+    lo, hi = 500, 1900
+    f = np.linspace(lo, hi, len(x)) if up else np.linspace(hi, lo, len(x))
+    f = f * (1 + 0.012 * np.sin(2 * np.pi * 9 * x))
+    breath = 0.04 * rng.standard_normal(len(x))
+    return (np.sin(2 * np.pi * np.cumsum(f) / RATE) + breath) * env(len(x), 0.04, 0.08)
+
+
+def honk():
+    """Clown horn, honk-honk."""
+    def one(d):
+        x = t(d)
+        s = sum(saw(f, x) for f in (370, 554))
+        return lowpass(s, 0.3) * env(len(x), 0.01, 0.04)
+    return np.concatenate([one(0.16), silence(0.07), one(0.24)])
+
+
+def bonk():
+    """Hollow cartoon bonk."""
+    x = t(0.35)
+    f = 180 * np.exp(-x * 4) + 90
+    body = np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-x * 12)
+    click = rng.standard_normal(len(x)) * np.exp(-x * 150) * 0.6
+    return body + click
 
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [
         ('airhorn', airhorn),
-        ('fanfare', fanfare),
+        ('kazoo', kazoo_fanfare),
         ('sadtrombone', sad_trombone),
-        ('ding', ding),
-        ('buzzer', buzzer),
+        ('boing', boing),
+        ('slideup', lambda: slide_whistle(True)),
+        ('slidedown', lambda: slide_whistle(False)),
+        ('honk', honk),
+        ('bonk', bonk),
         ('whoosh', whoosh),
         ('drumroll', drumroll),
-        ('zap', zap),
     ]:
         write(name, fn())
         print('wrote', name)

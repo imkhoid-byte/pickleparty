@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
 import { Team } from './game/scoring';
+import type { AnnouncerId } from './audio/personas';
 import { Spice } from './game/spice';
 
 export interface Settings {
@@ -18,6 +19,8 @@ export interface Settings {
   sound: boolean;
   /** Read penalties out loud with the team names. */
   voice: boolean;
+  /** Which announcer personality reads the prompts. */
+  announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
   trialStartedAt: number | null;
   /** Last known subscription status, so Pro works offline. The store is the source of truth. */
@@ -48,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   sound: true,
   voice: true,
+  announcer: 'hype',
   trialStartedAt: null,
   proCached: false,
   trialEndedPaywallShown: false,

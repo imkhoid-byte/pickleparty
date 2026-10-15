@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { ANNOUNCERS, announcerScript } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
 import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
@@ -65,7 +66,7 @@ describe('announcer text', () => {
   it('names the team that has to act in every moment', () => {
     const p = momentPrompt('ace', 'Lob Squad', 'tipsy', 'Dink Floyd');
     expect(p.body).toBe('Lob Squad aced Dink Floyd. Dink Floyd, take 1 sip.');
-    expect(p.sound).toBe('zap');
+    expect(p.sound).toBe('boing');
   });
   it('attaches a sound to big moments', () => {
     const p = promptForEvents(
@@ -116,5 +117,26 @@ describe('wild mode (couples)', () => {
   it('tipsy and chill never get acts', () => {
     expect(renderPenalty('{sips:1}', 'tipsy')).toBe('take 1 sip');
     expect(renderPenalty('{sips:1} {finish}', 'chill', () => 0)).not.toMatch(/partner/);
+  });
+});
+
+describe('announcer personalities', () => {
+  const prompt = { title: 'Net Tax', body: 'Lob Squad, take 1 sip.', sound: 'sadtrombone' as const };
+  it('classic reads it straight', () => {
+    expect(announcerScript(prompt, 'classic', () => 0).text).toBe('Net Tax! Lob Squad, take 1 sip.');
+  });
+  it('characters add a mood-matched intro and sometimes a pun', () => {
+    const s = announcerScript(prompt, 'hype', () => 0);
+    expect(s.text).toBe('Oh nooo! Net Tax! Lob Squad, take 1 sip. Brine time!');
+    expect(announcerScript(prompt, 'squeaky', () => 0).pitch).toBeGreaterThan(1.5);
+    expect(announcerScript(prompt, 'bigdill', () => 0).pitch).toBeLessThan(0.7);
+    const quiet = announcerScript(prompt, 'bigdill', () => 0.99);
+    expect(quiet.text).toBe('Net Tax! Lob Squad, take 1 sip.');
+  });
+  it('every announcer has a voice the phone can do', () => {
+    for (const a of ANNOUNCERS) {
+      expect(a.pitch).toBeGreaterThanOrEqual(0.5);
+      expect(a.pitch).toBeLessThanOrEqual(2);
+    }
   });
 });

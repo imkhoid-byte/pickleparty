@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
+import { previewAnnouncer } from '../audio/announcer';
+import { ANNOUNCERS } from '../audio/personas';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
 import { autoPaywall } from '../monetization/entitlements';
@@ -73,7 +75,27 @@ export function Home() {
         <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
         <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
       </View>
-      <Text style={styles.muted}>Calls out penalties by team name, so nobody has to check the phone.</Text>
+      {settings.voice && (
+        <View style={styles.row}>
+          {ANNOUNCERS.map((a) => (
+            <Chip
+              key={a.id}
+              label={`${a.emoji} ${a.label}`}
+              selected={settings.announcer === a.id}
+              color={colors.sky}
+              onPress={() => {
+                updateSettings({ announcer: a.id });
+                previewAnnouncer(a.id, settings.sound);
+              }}
+            />
+          ))}
+        </View>
+      )}
+      <Text style={styles.muted}>
+        {settings.voice
+          ? `${ANNOUNCERS.find((a) => a.id === settings.announcer)?.blurb ?? ''} Calls out penalties by team name. Tap one to hear it.`
+          : 'Calls out penalties by team name, so nobody has to check the phone.'}
+      </Text>
       {!settings.ageConfirmed && (
         <Text style={styles.link} onPress={() => updateSettings({ ageAsked: false })}>
           21+? Unlock drinking modes

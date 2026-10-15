@@ -65,7 +65,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   /** Show a prompt and announce it out loud. */
   const show = (p: Shown) => {
     setPrompt(p);
-    announce(p, { sound: settings.sound, voice: settings.voice });
+    announce(p, { sound: settings.sound, voice: settings.voice, announcer: settings.announcer });
   };
   const toggleAudio = () => {
     if (audioOn) hush();

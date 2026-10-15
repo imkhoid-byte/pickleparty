@@ -5,29 +5,33 @@ import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Speech from 'expo-speech';
 
 import type { PartyPrompt, SoundId } from '../game/party';
-import { speechText } from './speechText';
+import { AnnouncerId, announcerScript } from './personas';
 
 const SOURCES: Record<SoundId, number> = {
   airhorn: require('../../assets/sounds/airhorn.wav'),
-  fanfare: require('../../assets/sounds/fanfare.wav'),
+  kazoo: require('../../assets/sounds/kazoo.wav'),
   sadtrombone: require('../../assets/sounds/sadtrombone.wav'),
-  ding: require('../../assets/sounds/ding.wav'),
-  buzzer: require('../../assets/sounds/buzzer.wav'),
+  boing: require('../../assets/sounds/boing.wav'),
+  slideup: require('../../assets/sounds/slideup.wav'),
+  slidedown: require('../../assets/sounds/slidedown.wav'),
+  honk: require('../../assets/sounds/honk.wav'),
+  bonk: require('../../assets/sounds/bonk.wav'),
   whoosh: require('../../assets/sounds/whoosh.wav'),
   drumroll: require('../../assets/sounds/drumroll.wav'),
-  zap: require('../../assets/sounds/zap.wav'),
 };
 
 /** Roughly when each sound has done its thing and the voice can start (ms). */
 const VOICE_DELAY: Record<SoundId, number> = {
   airhorn: 1300,
-  fanfare: 900,
-  sadtrombone: 1500,
-  ding: 300,
-  buzzer: 500,
+  kazoo: 1000,
+  sadtrombone: 1700,
+  boing: 450,
+  slideup: 500,
+  slidedown: 500,
+  honk: 450,
+  bonk: 300,
   whoosh: 300,
   drumroll: 1400,
-  zap: 250,
 };
 
 const players = new Map<SoundId, AudioPlayer>();
@@ -53,10 +57,10 @@ export function playSound(id: SoundId) {
   }
 }
 
-export function speak(text: string) {
+export function speak(text: string, voice: { pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
   try {
     Speech.stop();
-    Speech.speak(text, { rate: 1.0, pitch: 1.05 });
+    Speech.speak(text, voice);
   } catch {
     // ignore
   }
@@ -73,15 +77,26 @@ export function hush() {
   }
 }
 
-export function announce(prompt: PartyPrompt, opts: { sound: boolean; voice: boolean }) {
+export function announce(
+  prompt: PartyPrompt,
+  opts: { sound: boolean; voice: boolean; announcer?: AnnouncerId },
+) {
   hush();
   const withSound = opts.sound && prompt.sound !== undefined;
   if (withSound) playSound(prompt.sound!);
   if (!opts.voice) return;
-  const text = speechText(prompt);
+  const { text, pitch, rate } = announcerScript(prompt, opts.announcer ?? 'hype');
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {
     pendingVoice = null;
-    speak(text);
+    speak(text, { pitch, rate });
   }, delay);
+}
+
+/** Let players hear an announcer before picking it. */
+export function previewAnnouncer(id: AnnouncerId, sound: boolean) {
+  announce(
+    { emoji: '🥒', title: 'Brine time', body: "Let's dink, pickle people!", sound: 'kazoo' },
+    { sound, voice: true, announcer: id },
+  );
 }

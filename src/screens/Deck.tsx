@@ -33,7 +33,7 @@ export function Deck() {
     setDrawn({ card: next.card, text, locked: next.locked });
     announce(
       { emoji: '🃏', title: KIND_STYLE[next.card.kind].label.toLowerCase(), body: text, sound: 'whoosh' },
-      { sound: settings.sound, voice: settings.voice },
+      { sound: settings.sound, voice: settings.voice, announcer: settings.announcer },
     );
     Animated.spring(flip, { toValue: 1, friction: 6, useNativeDriver: true }).start();
   };
