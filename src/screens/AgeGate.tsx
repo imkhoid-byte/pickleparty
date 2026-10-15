@@ -5,7 +5,15 @@ import { Button, Screen } from '../ui/components';
 import { colors } from '../ui/theme';
 
 export function AgeGate() {
-  const { updateSettings } = useApp();
+  const { settings, updateSettings } = useApp();
+  const answer = (adult: boolean) =>
+    updateSettings({
+      ageAsked: true,
+      ageConfirmed: adult,
+      spice: adult ? 'tipsy' : 'chill',
+      // First launch also starts the free Pro trial.
+      trialStartedAt: settings.trialStartedAt ?? Date.now(),
+    });
   return (
     <Screen scroll={false}>
       <View style={styles.wrap}>
@@ -17,12 +25,12 @@ export function AgeGate() {
         <View style={{ gap: 12, alignSelf: 'stretch' }}>
           <Button
             label="Yes, I'm 21+"
-            onPress={() => updateSettings({ ageAsked: true, ageConfirmed: true, spice: 'tipsy' })}
+            onPress={() => answer(true)}
           />
           <Button
             label="No — keep it alcohol-free"
             variant="secondary"
-            onPress={() => updateSettings({ ageAsked: true, ageConfirmed: false, spice: 'chill' })}
+            onPress={() => answer(false)}
           />
         </View>
         <Text style={styles.fine}>

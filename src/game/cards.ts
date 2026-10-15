@@ -1,6 +1,6 @@
 // Card decks. Text may use {sips:N} and {finish}; see spice.ts.
 
-export type PackId = 'classic' | 'kitchen' | 'trickshots' | 'afterdark';
+export type PackId = 'classic' | 'kitchen' | 'trickshots' | 'afterdark' | 'datenight' | 'custom';
 export type CardKind = 'dare' | 'rule' | 'trick' | 'vote';
 
 export interface Card {
@@ -16,8 +16,10 @@ export interface Pack {
   emoji: string;
   description: string;
   premium: boolean;
-  /** Display price; real price comes from the store once IAP is wired up. */
+  /** Display price; the real price comes from the store. */
   price?: string;
+  /** Only offered to players who passed the 21+ gate, and needs couples to opt in. */
+  adult?: boolean;
 }
 
 export const PACKS: Pack[] = [
@@ -25,7 +27,19 @@ export const PACKS: Pack[] = [
   { id: 'kitchen', name: 'Kitchen Nightmares', emoji: '🔥', description: 'Spicier dares and chaotic house rules.', premium: true, price: '$2.99' },
   { id: 'trickshots', name: 'Trick Shot Tour', emoji: '🎯', description: 'Behind-the-back, ernes, ATPs. Film everything.', premium: true, price: '$2.99' },
   { id: 'afterdark', name: 'After Dark', emoji: '🌙', description: 'For the 4th game when nobody is keeping score.', premium: true, price: '$2.99' },
+  {
+    id: 'datenight',
+    name: 'Date Night',
+    emoji: '💋',
+    description: 'Flirty dares for couples doubles. Only ever involves your own partner.',
+    premium: true,
+    price: '$3.99',
+    adult: true,
+  },
 ];
+
+/** Shown on a player's own cards (Pro feature, not sold separately). */
+export const CUSTOM_PACK = { name: 'Your Crew', emoji: '✏️' };
 
 const c = (pack: PackId, kind: CardKind, texts: string[]): Card[] =>
   texts.map((text, i) => ({ id: `${pack}-${kind}-${i}`, pack, kind, text }));
@@ -95,10 +109,54 @@ export const CARDS: Card[] = [
     'VOTE: Who takes pickleball way too seriously? They {sips:2}.',
     'VOTE: Who would you least want as a partner at nationals? They {sips:1}.',
   ]),
+  // Date Night: every card involves only your own partner. Couples can always Pass.
+  ...c('datenight', 'dare', [
+    'Lose this rally? Your partner gets one free butt-slap. 🍑',
+    'Win the next rally and collect a kiss from your partner. Lose it and you owe them a back rub tonight.',
+    'Your partner picks your next shot. Refuse and you owe them a kiss in front of everyone.',
+    "Whisper to your partner what you'd do if you win this game. They rate it 1-10. Under 5? {sips:1}.",
+    'Dip your partner like a dance finale before your next serve.',
+    'Compliment your partner on something that has nothing to do with pickleball. Blush and {sips:1}.',
+    'Slow-dance with your partner for 10 seconds. Everyone else hums.',
+    'Your partner renames you for the rest of the game. Everyone has to use it.',
+    'Tell your partner, out loud, the moment you first thought they were hot.',
+    'Next point you win, celebrate with a kiss from your partner. Forget and {sips:2}.',
+    'Losing partner carries both paddles and both waters like a butler until the next game.',
+  ]),
+  ...c('datenight', 'vote', [
+    'VOTE: Cutest couple on court. Everyone else {sips:1}.',
+    'VOTE: Which couple would survive a mixed-doubles tournament together? The other couple {sips:2}.',
+    'VOTE: Which couple argues most about line calls? They kiss and make up, or {sips:2}.',
+  ]),
 ];
 
 export function cardsForPacks(packs: PackId[]): Card[] {
   return CARDS.filter((card) => packs.includes(card.pack));
+}
+
+export function customCards(texts: { id: string; text: string }[]): Card[] {
+  return texts.map((t) => ({ id: `custom-${t.id}`, pack: 'custom', kind: 'dare', text: t.text }));
+}
+
+/** How often a free player sees a sample card from a pack they don't have. */
+export const TEASER_RATE = 1 / 6;
+
+/**
+ * Draw from the playable deck, but sometimes show a sample from a locked pack
+ * instead. The sample is a real card the group can play, a taste of the pack.
+ */
+export function drawWithTeaser(
+  deck: Card[],
+  locked: Card[],
+  recent: string[] = [],
+  rng: () => number = Math.random,
+): { card: Card; locked: boolean } | null {
+  if (locked.length > 0 && rng() < TEASER_RATE) {
+    const card = drawCard(locked, recent, rng);
+    if (card) return { card, locked: true };
+  }
+  const card = drawCard(deck, recent, rng);
+  return card ? { card, locked: false } : null;
 }
 
 export function drawCard(

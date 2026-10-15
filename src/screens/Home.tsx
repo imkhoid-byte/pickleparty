@@ -1,16 +1,28 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
+import { autoPaywall } from '../monetization/entitlements';
+import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen } from '../ui/components';
-import { colors } from '../ui/theme';
-import type { Navigate } from './routes';
+import { colors, radius } from '../ui/theme';
 
-export function Home({ go }: { go: Navigate }) {
-  const { settings, updateSettings, history } = useApp();
+export function Home() {
+  const { settings, updateSettings, history, access } = useApp();
   const champ = leaderboard(history)[0];
   const pickles = history.filter((g) => g.pickled).length;
+
+  // The only automatic paywall: once, right after the free trial ends.
+  useEffect(() => {
+    const reason = autoPaywall(access, settings.trialEndedPaywallShown);
+    if (reason) {
+      updateSettings({ trialEndedPaywallShown: true });
+      openPaywall(reason);
+    }
+  }, [access, settings.trialEndedPaywallShown, updateSettings]);
 
   return (
     <Screen>
@@ -18,19 +30,28 @@ export function Home({ go }: { go: Navigate }) {
         <Text style={styles.logoEmoji}>🥒</Text>
         <Text style={styles.logo}>PICKLE</Text>
         <Text style={[styles.logo, { color: colors.pink, marginTop: -14 }]}>PARTY</Text>
-        <Text style={styles.tagline}>Keep score. Cause chaos. Don't get pickled.</Text>
+        <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
       </View>
 
-      <Button label="🏓  Start a Match" onPress={() => go({ name: 'setup' })} />
-      <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => go({ name: 'deck' })} />
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+      <ProBadge />
+
+      <Button label="🏓  Start a Match" onPress={() => router.push('/setup')} />
+      <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
+      <View style={styles.grid}>
+        <Button label="🏆 Stats" variant="secondary" style={styles.cell} onPress={() => router.push('/stats')} />
         <Button
-          label="🏆 Stats"
+          label="🏟️ Round Robin"
           variant="secondary"
-          style={{ flex: 1 }}
-          onPress={() => go({ name: 'history' })}
+          style={styles.cell}
+          onPress={() => (access.isPro ? router.push('/roundrobin') : openPaywall('roundRobin'))}
         />
-        <Button label="🎁 Packs" variant="secondary" style={{ flex: 1 }} onPress={() => go({ name: 'store' })} />
+        <Button label="🎁 Packs" variant="secondary" style={styles.cell} onPress={() => router.push('/packs')} />
+        <Button
+          label="✏️ My Cards"
+          variant="secondary"
+          style={styles.cell}
+          onPress={() => (access.isPro ? router.push('/mycards') : openPaywall('customCards'))}
+        />
       </View>
 
       <Label>Spice level</Label>
@@ -63,6 +84,30 @@ export function Home({ go }: { go: Navigate }) {
   );
 }
 
+function ProBadge() {
+  const { access } = useApp();
+  if (access.source === 'subscription') {
+    return <Text style={[styles.badgeText, { textAlign: 'center' }]}>👑 PickleParty Pro</Text>;
+  }
+  const trial = access.source === 'trial';
+  return (
+    <Pressable
+      onPress={() => openPaywall('upgrade')}
+      style={[styles.badge, { borderColor: trial ? colors.orange : colors.pink }]}
+      accessibilityRole="button"
+    >
+      <Text style={styles.badgeText}>
+        {trial
+          ? `👑 Pro trial: ${access.trialDaysLeft} day${access.trialDaysLeft === 1 ? '' : 's'} left`
+          : '👑 Go Pro: crew stats, round robins & every pack'}
+      </Text>
+      <Text style={[styles.badgeText, { color: trial ? colors.orange : colors.pink }]}>
+        {trial ? 'Keep it →' : 'See →'}
+      </Text>
+    </Pressable>
+  );
+}
+
 function Stat({ value, label }: { value: string | number; label: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
@@ -75,13 +120,26 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: 24 },
-  logoEmoji: { fontSize: 64, transform: [{ rotate: '-20deg' }] },
-  logo: { color: colors.pickle, fontSize: 64, fontWeight: '900', letterSpacing: 2 },
+  hero: { alignItems: 'center', paddingVertical: 16 },
+  logoEmoji: { fontSize: 56, transform: [{ rotate: '-20deg' }] },
+  logo: { color: colors.pickle, fontSize: 60, fontWeight: '900', letterSpacing: 2 },
   tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  cell: { flexBasis: '46%', flexGrow: 1, paddingVertical: 14 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   muted: { color: colors.muted, fontSize: 14 },
   link: { color: colors.sky, fontSize: 14, fontWeight: '700' },
+  badge: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  badgeText: { color: colors.text, fontSize: 14, fontWeight: '800', flexShrink: 1 },
   stats: {
     flexDirection: 'row',
     backgroundColor: colors.surface,

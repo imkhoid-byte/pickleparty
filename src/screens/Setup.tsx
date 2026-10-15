@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Format, ScoringSystem, Team } from '../game/scoring';
+import { goBack, startMatch } from '../navigation';
 import { Button, Chip, Label, Screen } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
-import type { Navigate } from './routes';
 
 const TEAM_NAMES = [
   'Dink Floyd',
@@ -29,7 +29,7 @@ const randomName = (exclude: string) => {
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
-export function Setup({ go, back }: { go: Navigate; back: () => void }) {
+export function Setup() {
   const [names, setNames] = useState<[string, string]>(() => {
     const a = randomName('');
     return [a, randomName(a)];
@@ -48,11 +48,11 @@ export function Setup({ go, back }: { go: Navigate; back: () => void }) {
 
   const start = () => {
     const teamNames = names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string];
-    go({ name: 'match', config: { format, scoring, target, teamNames }, firstServer });
+    startMatch({ format, scoring, target, teamNames }, firstServer);
   };
 
   return (
-    <Screen title="New Match" onBack={back}>
+    <Screen title="New Match" onBack={goBack}>
       {([0, 1] as Team[]).map((t) => (
         <View key={t} style={{ gap: 6 }}>
           <Label>Team {t + 1}</Label>

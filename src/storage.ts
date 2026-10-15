@@ -10,9 +10,19 @@ export interface Settings {
   ageConfirmed: boolean;
   /** Whether the age gate has been shown at all. */
   ageAsked: boolean;
+  /** Packs bought one by one (from the store). */
   unlockedPacks: PackId[];
   activePacks: PackId[];
   haptics: boolean;
+  /** When the free Pro trial began (first launch). */
+  trialStartedAt: number | null;
+  /** Last known subscription status, so Pro works offline. The store is the source of truth. */
+  proCached: boolean;
+  trialEndedPaywallShown: boolean;
+  /** Both partners agreed to Date Night cards. */
+  dateNightConsent: boolean;
+  /** Pro: the crew's own cards. */
+  customCards: { id: string; text: string }[];
 }
 
 export interface GameRecord {
@@ -32,6 +42,11 @@ export const DEFAULT_SETTINGS: Settings = {
   unlockedPacks: ['classic'],
   activePacks: ['classic'],
   haptics: true,
+  trialStartedAt: null,
+  proCached: false,
+  trialEndedPaywallShown: false,
+  dateNightConsent: false,
+  customCards: [],
 };
 
 const SETTINGS_KEY = 'pickleparty.settings.v1';

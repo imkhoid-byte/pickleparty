@@ -1,14 +1,17 @@
 import * as Haptics from 'expo-haptics';
+import { router, useIsFocused } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '../AppState';
 import { APP_LINK, HASHTAG } from '../config';
-import { Card as PartyCard, cardsForPacks, drawCard } from '../game/cards';
+import { Card as PartyCard, PACKS, drawCard, drawWithTeaser } from '../game/cards';
 import { MOMENTS, MomentId, PartyPrompt, momentPrompt, promptForEvents } from '../game/party';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
+import { goBack, openPaywall } from '../navigation';
+import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 
@@ -21,21 +24,31 @@ export function shareText(s: MatchState): string {
   return `${winner} beat ${loser} ${score}${brag}\nScored on PickleParty ${HASHTAG}\n${APP_LINK}`;
 }
 
-export function Match({
-  config,
-  firstServer,
-  back,
-}: {
-  config: MatchConfig;
-  firstServer: Team;
-  back: () => void;
-}) {
-  const { settings, recordGame } = useApp();
-  const deck = useMemo(() => cardsForPacks(settings.activePacks), [settings.activePacks]);
+function gameRecord(s: MatchState): GameRecord {
+  const winner = s.winner ?? 0;
+  return {
+    id: `${Date.now()}`,
+    date: Date.now(),
+    teamNames: s.config.teamNames,
+    scores: s.scores,
+    winner,
+    pickled: s.scores[other(winner)] === 0,
+    rallies: s.rallies,
+  };
+}
+
+/** A prompt on screen. Cards can be passed; samples from locked packs offer an unlock. */
+type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
+
+export function Match({ config, firstServer }: { config: MatchConfig; firstServer: Team }) {
+  const { settings, recordGame, deck, lockedCards, access } = useApp();
+  const back = goBack;
+  // Pop-ups are native modals: hide them while another screen is on top.
+  const focused = useIsFocused();
   const rules = useMemo(() => deck.filter((c) => c.kind === 'rule'), [deck]);
   const [match, setMatch] = useState(() => newMatch(config, firstServer));
   const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
-  const [prompt, setPrompt] = useState<PartyPrompt | null>(null);
+  const [prompt, setPrompt] = useState<Shown | null>(null);
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
 
@@ -51,23 +64,23 @@ export function Match({
     if (p) setPrompt(p);
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      recordGame({
-        id: `${Date.now()}`,
-        date: Date.now(),
-        teamNames: names,
-        scores: state.scores,
-        winner: state.winner,
-        pickled: state.scores[other(state.winner)] === 0,
-        rallies: state.rallies,
-      });
+      recordGame(gameRecord(state));
     }
   };
 
   const onDraw = () => {
-    const card = drawCard(deck, recent);
-    if (!card) return;
+    const drawn = drawWithTeaser(deck, access.isPro ? [] : lockedCards, recent);
+    if (!drawn) return;
+    const { card, locked } = drawn;
     setRecent((r) => [card.id, ...r].slice(0, 12));
-    setPrompt({ emoji: '🃏', title: 'Party Card', body: renderPenalty(card.text, spice) });
+    const pack = PACKS.find((p) => p.id === card.pack);
+    setPrompt({
+      emoji: locked ? '🔒' : '🃏',
+      title: locked ? `Sneak peek: ${pack?.name}` : 'Party Card',
+      body: renderPenalty(card.text, spice),
+      card: true,
+      lockedPack: locked ? pack?.name : undefined,
+    });
   };
 
   const rematch = () => {
@@ -177,7 +190,7 @@ export function Match({
       </View>
 
       {/* One modal for everything: iOS can't present a second modal while another is closing. */}
-      {pendingMoment !== null ? (
+      {!focused ? null : pendingMoment !== null ? (
         <Takeover
           visible
           emoji={MOMENTS.find((m) => m.id === pendingMoment)?.emoji ?? '❓'}
@@ -202,9 +215,27 @@ export function Match({
           emoji={prompt.emoji}
           title={prompt.title}
           body={prompt.body}
-          accent={prompt.big ? colors.orange : colors.pickle}
+          accent={prompt.lockedPack ? colors.sky : prompt.big ? colors.orange : colors.pickle}
           onClose={() => setPrompt(null)}
-        />
+        >
+          {prompt.card ? (
+            <>
+              <Button label="Let's go!" onPress={() => setPrompt(null)} />
+              {prompt.lockedPack ? (
+                <Button
+                  label={`🔓 Get ${prompt.lockedPack}`}
+                  variant="secondary"
+                  onPress={() => {
+                    setPrompt(null);
+                    openPaywall('pack');
+                  }}
+                />
+              ) : (
+                <Button label="Pass: draw another" variant="ghost" onPress={onDraw} />
+              )}
+            </>
+          ) : undefined}
+        </Takeover>
       ) : (
         <Takeover
           visible={match.winner !== null}
@@ -219,6 +250,11 @@ export function Match({
             onPress={() => Share.share({ message: shareText(match) }).catch(() => {})}
           />
           <Button label="🔁 Rematch" variant="pink" onPress={rematch} />
+          <Button
+            label={access.isPro ? '📊 Crew stats & rivalries' : '👑 Who owns this rivalry? See Crew Stats'}
+            variant="secondary"
+            onPress={() => (access.isPro ? router.push('/stats') : openPaywall('crewStats'))}
+          />
           <Button label="Home" variant="ghost" onPress={back} />
         </Takeover>
       )}
