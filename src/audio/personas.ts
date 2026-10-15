@@ -13,12 +13,34 @@ export interface Announcer {
   blurb: string;
   pitch: number;
   rate: number;
+  /** Use a male voice when the phone has one. */
+  male?: boolean;
+  /** Pitch to use instead when no male voice is installed (deepens the default voice). */
+  fallbackPitch?: number;
 }
 
 export const ANNOUNCERS: Announcer[] = [
-  { id: 'hype', label: 'Hype', emoji: '🎙️', blurb: 'Sports-announcer energy.', pitch: 1.15, rate: 1.08 },
+  {
+    id: 'hype',
+    label: 'Hype',
+    emoji: '🎙️',
+    blurb: 'A big-voiced sports announcer calling every play.',
+    pitch: 0.95,
+    rate: 1.1,
+    male: true,
+    fallbackPitch: 0.75,
+  },
   { id: 'squeaky', label: 'Squeaky Pickle', emoji: '🐿️', blurb: 'A very small, very excited pickle.', pitch: 1.9, rate: 1.1 },
-  { id: 'bigdill', label: 'Big Dill', emoji: '🥒', blurb: 'Deep, dramatic movie-trailer voice.', pitch: 0.55, rate: 0.85 },
+  {
+    id: 'bigdill',
+    label: 'Big Dill',
+    emoji: '🥒',
+    blurb: 'Deep, dramatic movie-trailer voice.',
+    pitch: 0.65,
+    rate: 0.85,
+    male: true,
+    fallbackPitch: 0.55,
+  },
   { id: 'classic', label: 'Classic', emoji: '📢', blurb: 'Just the facts.', pitch: 1, rate: 1 },
 ];
 
@@ -39,10 +61,25 @@ const MOOD: Record<SoundId, Mood> = {
 
 const INTROS: Record<Exclude<AnnouncerId, 'classic'>, Record<Mood, string[]>> = {
   hype: {
-    hype: ['BOOM!', 'Ladies and gentlemen!', 'Are you kidding me?!', 'Somebody call the fire department!'],
-    shame: ['Oh nooo!', 'Yikes!', 'That is gonna leave a mark!', 'Oof. Oof. OOF.'],
-    drama: ['Here we go, here we go!', 'The tension! The drama!'],
-    neutral: ['Alright, alright!', 'Listen up, people!'],
+    hype: [
+      'OHHH, WHAT A SHOT!',
+      'Ladies and gentlemen, are you SEEING this?!',
+      'Can you BELIEVE it, folks?!',
+      'The crowd is on its FEET!',
+      'Put it on the highlight reel!',
+    ],
+    shame: [
+      'Ohhh, folks, that one HURT!',
+      "That's going on the blooper reel!",
+      'Oh, tough break, tough break!',
+      "Somebody check on them, that's ugly!",
+    ],
+    drama: [
+      'Here we go, folks, HERE WE GO!',
+      'You could cut the tension with a paddle!',
+      "It all comes down to this, folks!",
+    ],
+    neutral: ['Back to the action, folks!', "And we're LIVE on court!"],
   },
   squeaky: {
     hype: ['Wheee!', 'Yippee!', 'Holy pickles!'],
@@ -88,4 +125,60 @@ export function announcerScript(
   const intro = rng() < 0.8 ? `${pick(INTROS[a.id][mood], rng)} ` : '';
   const outro = rng() < 0.45 ? ` ${pick(PUNS, rng)}` : '';
   return { text: `${intro}${core}${outro}`, pitch: a.pitch, rate: a.rate };
+}
+
+// --- Choosing a voice ---------------------------------------------------------
+// Phones don't label voices by gender, so match known male voice names across
+// iOS, Android and desktop browsers.
+
+export interface VoiceInfo {
+  identifier: string;
+  name: string;
+  language: string;
+  quality?: string;
+}
+
+const MALE_NAMES = new Set([
+  'male', 'aaron', 'arthur', 'daniel', 'gordon', 'tom', 'alex', 'evan', 'nathan', 'reed', 'rocko',
+  'eddy', 'rishi', 'oliver', 'david', 'guy', 'mark', 'george', 'ryan', 'christopher', 'eric',
+  'roger', 'andrew', 'brian', 'davis', 'tony', 'jason', 'james', 'liam', 'thomas', 'lee', 'malcolm',
+]);
+const FEMALE_NAMES = new Set([
+  'female', 'samantha', 'victoria', 'karen', 'zira', 'susan', 'moira', 'tessa', 'fiona', 'kate',
+  'serena', 'ava', 'allison', 'nicky', 'zoe', 'aria', 'jenny', 'emma', 'catherine', 'hazel', 'sonia',
+]);
+/** Apple's joke voices sound robotic, not like an announcer. */
+const NOVELTY = new Set([
+  'fred', 'ralph', 'junior', 'albert', 'bahh', 'bells', 'boing', 'bubbles', 'cellos', 'wobble',
+  'zarvox', 'trinoids', 'whisper', 'jester', 'organ', 'superstar', 'hysterical', 'grandpa', 'grandma',
+]);
+/** Google's Android male voices, e.g. "en-us-x-iom-local". */
+const ANDROID_MALE = /-x-(iob|iol|iom|tpd|gbb|gbd|rjs)-/i;
+
+const words = (s: string) => s.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+
+/** The best male English voice on this device, or null if there isn't one. */
+export function pickMaleVoice(voices: VoiceInfo[]): string | null {
+  let best: { id: string; score: number } | null = null;
+  for (const v of voices) {
+    if (!/^en/i.test(v.language)) continue;
+    const w = words(`${v.name} ${v.identifier}`);
+    if (w.some((x) => NOVELTY.has(x) || FEMALE_NAMES.has(x))) continue;
+    const male = w.some((x) => MALE_NAMES.has(x)) || ANDROID_MALE.test(v.identifier);
+    if (!male) continue;
+    const score =
+      (/^en[-_]us/i.test(v.language) ? 3 : 1) +
+      (v.quality === 'Enhanced' || /enhanced|premium|neural|natural/i.test(v.name + v.identifier) ? 2 : 0);
+    if (!best || score > best.score) best = { id: v.identifier, score };
+  }
+  return best?.id ?? null;
+}
+
+/** Voice, pitch and speed for an announcer, given the male voice found (if any). */
+export function voiceSettings(
+  a: Announcer,
+  maleVoice: string | null,
+): { voice?: string; pitch: number; rate: number } {
+  if (a.male && maleVoice) return { voice: maleVoice, pitch: a.pitch, rate: a.rate };
+  return { pitch: a.male ? (a.fallbackPitch ?? a.pitch) : a.pitch, rate: a.rate };
 }

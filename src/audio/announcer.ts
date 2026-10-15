@@ -5,7 +5,7 @@ import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Speech from 'expo-speech';
 
 import type { PartyPrompt, SoundId } from '../game/party';
-import { AnnouncerId, announcerScript } from './personas';
+import { AnnouncerId, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from './personas';
 
 const SOURCES: Record<SoundId, number> = {
   airhorn: require('../../assets/sounds/airhorn.wav'),
@@ -57,7 +57,21 @@ export function playSound(id: SoundId) {
   }
 }
 
-export function speak(text: string, voice: { pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
+/** The phone's best male voice: undefined until looked up, null if there isn't one. */
+let maleVoice: string | null | undefined;
+
+async function findVoices() {
+  try {
+    const voices = await Speech.getAvailableVoicesAsync();
+    // Browsers can report an empty list until their voices finish loading; try again later.
+    if (voices.length > 0) maleVoice = pickMaleVoice(voices);
+  } catch {
+    maleVoice = null;
+  }
+}
+findVoices();
+
+export function speak(text: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
   try {
     Speech.stop();
     Speech.speak(text, voice);
@@ -85,11 +99,13 @@ export function announce(
   const withSound = opts.sound && prompt.sound !== undefined;
   if (withSound) playSound(prompt.sound!);
   if (!opts.voice) return;
-  const { text, pitch, rate } = announcerScript(prompt, opts.announcer ?? 'hype');
+  const id = opts.announcer ?? 'hype';
+  const { text } = announcerScript(prompt, id);
+  if (maleVoice === undefined) findVoices();
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {
     pendingVoice = null;
-    speak(text, { pitch, rate });
+    speak(text, voiceSettings(announcerFor(id), maleVoice ?? null));
   }, delay);
 }
 

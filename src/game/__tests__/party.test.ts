@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { ANNOUNCERS, announcerScript } from '../../audio/personas';
+import { ANNOUNCERS, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
 import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
@@ -127,7 +127,7 @@ describe('announcer personalities', () => {
   });
   it('characters add a mood-matched intro and sometimes a pun', () => {
     const s = announcerScript(prompt, 'hype', () => 0);
-    expect(s.text).toBe('Oh nooo! Net Tax! Lob Squad, take 1 sip. Brine time!');
+    expect(s.text).toBe('Ohhh, folks, that one HURT! Net Tax! Lob Squad, take 1 sip. Brine time!');
     expect(announcerScript(prompt, 'squeaky', () => 0).pitch).toBeGreaterThan(1.5);
     expect(announcerScript(prompt, 'bigdill', () => 0).pitch).toBeLessThan(0.7);
     const quiet = announcerScript(prompt, 'bigdill', () => 0.99);
@@ -138,5 +138,40 @@ describe('announcer personalities', () => {
       expect(a.pitch).toBeGreaterThanOrEqual(0.5);
       expect(a.pitch).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe('announcer voices', () => {
+  const v = (name: string, identifier: string, language = 'en-US', quality = 'Default') => ({
+    name,
+    identifier,
+    language,
+    quality,
+  });
+  it('finds a male voice on iPhone, preferring US and enhanced quality', () => {
+    const ios = [
+      v('Samantha', 'com.apple.voice.compact.en-US.Samantha'),
+      v('Fred', 'com.apple.speech.synthesis.voice.Fred'),
+      v('Daniel', 'com.apple.voice.compact.en-GB.Daniel', 'en-GB'),
+      v('Aaron', 'com.apple.voice.compact.en-US.Aaron'),
+      v('Evan', 'com.apple.voice.enhanced.en-US.Evan', 'en-US', 'Enhanced'),
+    ];
+    expect(pickMaleVoice(ios)).toBe('com.apple.voice.enhanced.en-US.Evan');
+  });
+  it('finds Google male voices on Android and named male voices in browsers', () => {
+    expect(pickMaleVoice([v('en-us-x-sfg-local', 'en-us-x-sfg-local'), v('en-us-x-iom-local', 'en-us-x-iom-local')])).toBe(
+      'en-us-x-iom-local',
+    );
+    expect(
+      pickMaleVoice([v('Google UK English Female', 'Google UK English Female', 'en-GB'), v('Google UK English Male', 'Google UK English Male', 'en-GB')]),
+    ).toBe('Google UK English Male');
+    expect(pickMaleVoice([v('Microsoft Zira', 'zira'), v('Thomas', 'fr', 'fr-FR')])).toBeNull();
+  });
+  it('Hype uses the male voice, or deepens the default voice when there is none', () => {
+    const hype = ANNOUNCERS.find((a) => a.id === 'hype')!;
+    expect(voiceSettings(hype, 'evan')).toEqual({ voice: 'evan', pitch: 0.95, rate: 1.1 });
+    expect(voiceSettings(hype, null)).toEqual({ pitch: 0.75, rate: 1.1 });
+    const squeaky = ANNOUNCERS.find((a) => a.id === 'squeaky')!;
+    expect(voiceSettings(squeaky, 'evan').voice).toBeUndefined();
   });
 });
