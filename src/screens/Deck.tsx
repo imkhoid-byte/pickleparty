@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Share, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
+import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
 import { CUSTOM_PACK, Card, CardKind, PACKS, drawWithTeaser } from '../game/cards';
 import { renderPenalty } from '../game/spice';
@@ -28,9 +29,16 @@ export function Deck() {
     if (!next) return;
     setRecent((r) => [next.card.id, ...r].slice(0, Math.floor(deck.length / 2)));
     flip.setValue(0);
-    setDrawn({ card: next.card, text: renderPenalty(next.card.text, settings.spice), locked: next.locked });
+    const text = renderPenalty(next.card.text, settings.spice);
+    setDrawn({ card: next.card, text, locked: next.locked });
+    announce(
+      { emoji: '🃏', title: KIND_STYLE[next.card.kind].label.toLowerCase(), body: text, sound: 'whoosh' },
+      { sound: settings.sound, voice: settings.voice },
+    );
     Animated.spring(flip, { toValue: 1, friction: 6, useNativeDriver: true }).start();
   };
+
+  useEffect(() => hush, []);
 
   const kind = drawn ? KIND_STYLE[drawn.card.kind] : null;
   const pack = drawn

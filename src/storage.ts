@@ -14,6 +14,10 @@ export interface Settings {
   unlockedPacks: PackId[];
   activePacks: PackId[];
   haptics: boolean;
+  /** Sound effects on big moments. */
+  sound: boolean;
+  /** Read penalties out loud with the team names. */
+  voice: boolean;
   /** When the free Pro trial began (first launch). */
   trialStartedAt: number | null;
   /** Last known subscription status, so Pro works offline. The store is the source of truth. */
@@ -42,6 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   unlockedPacks: ['classic'],
   activePacks: ['classic'],
   haptics: true,
+  sound: true,
+  voice: true,
   trialStartedAt: null,
   proCached: false,
   trialEndedPaywallShown: false,

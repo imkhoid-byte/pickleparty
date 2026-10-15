@@ -62,7 +62,7 @@ export const CARDS: Card[] = [
     'HOUSE RULE: Hit the ball into the kitchen on a serve? {sips:2}.',
     'HOUSE RULE: Whoever wins a rally with a lob gets to make someone {sips:1}.',
     'HOUSE RULE: Before serving, the server must compliment an opponent.',
-    'HOUSE RULE: Any ball that hits a body = the hit player {sips:1}.',
+    'HOUSE RULE: Any ball that hits a body: the player who got hit must {sips:1}.',
     'HOUSE RULE: 10+ shot rally? Everyone {sips:1} to celebrate.',
     'HOUSE RULE: Teams must celebrate every point with a coordinated handshake.',
     'HOUSE RULE: Last person to touch their nose after a side-out must {sips:1}.',
@@ -70,7 +70,7 @@ export const CARDS: Card[] = [
   ...c('classic', 'vote', [
     'VOTE: Who has the worst serve on court? They {sips:2}.',
     'VOTE: Who complains about line calls the most? They {sips:1}.',
-    'VOTE: Who has the best outfit? They give out {sips:3} however they want.',
+    'VOTE: Who has the best outfit? They pick anyone to {sips:3}.',
     'VOTE: Who would win in a 1v1? Everyone else {sips:1}.',
     'VOTE: Most likely to blame their paddle. They {sips:1}.',
   ]),
@@ -90,7 +90,7 @@ export const CARDS: Card[] = [
     'HOUSE RULE: Loudest celebrator each rally picks who drinks. They make someone {sips:1}.',
   ]),
   ...c('trickshots', 'trick', [
-    'TRICK SHOT: Return a dink behind your back. Land it and give out {sips:3}.',
+    'TRICK SHOT: Return a dink behind your back. Land it and the other team must {sips:3}.',
     'TRICK SHOT: Hit an Around-The-Post this game and your opponents {finish}.',
     'TRICK SHOT: Land a between-the-legs shot. Miss = {sips:1}, make = everyone else {sips:2}.',
     'TRICK SHOT: Attempt an Erne this game. Pull it off and the other team {sips:3}.',
@@ -168,4 +168,9 @@ export function drawCard(
   const fresh = deck.filter((card) => !recent.includes(card.id));
   const pool = fresh.length > 0 ? fresh : deck;
   return pool[Math.floor(rng() * pool.length)];
+}
+
+/** Dares and trick shots go to a specific team so everyone knows who's up. */
+export function addressCard(text: string, kind: CardKind, who: string | null): string {
+  return who && (kind === 'dare' || kind === 'trick') ? `${who}: ${text}` : text;
 }

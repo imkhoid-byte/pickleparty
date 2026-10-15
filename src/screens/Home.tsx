@@ -67,6 +67,12 @@ export function Home() {
         ))}
       </View>
       <Text style={styles.muted}>{SPICES.find((s) => s.id === settings.spice)?.blurb}</Text>
+      <Label>Announcer</Label>
+      <View style={styles.row}>
+        <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
+        <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
+      </View>
+      <Text style={styles.muted}>Calls out penalties by team name, so nobody has to check the phone.</Text>
       {!settings.ageConfirmed && (
         <Text style={styles.link} onPress={() => updateSettings({ ageAsked: false })}>
           21+? Unlock drinking modes

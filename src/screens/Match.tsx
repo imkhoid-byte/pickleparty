@@ -1,12 +1,13 @@
 import * as Haptics from 'expo-haptics';
 import { router, useIsFocused } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '../AppState';
+import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
-import { Card as PartyCard, PACKS, drawCard, drawWithTeaser } from '../game/cards';
+import { Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
 import { MOMENTS, MomentId, PartyPrompt, momentPrompt, promptForEvents } from '../game/party';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
@@ -41,7 +42,7 @@ function gameRecord(s: MatchState): GameRecord {
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
 export function Match({ config, firstServer }: { config: MatchConfig; firstServer: Team }) {
-  const { settings, recordGame, deck, lockedCards, access } = useApp();
+  const { settings, updateSettings, recordGame, deck, lockedCards, access } = useApp();
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
@@ -52,16 +53,33 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
 
+  // The team that lost the last rally gets the next Party Card dare.
+  const [lastLoser, setLastLoser] = useState<Team | null>(null);
+
   const spice = settings.spice;
   const names = config.teamNames;
+  const audioOn = settings.sound || settings.voice;
+
+  /** Show a prompt and announce it out loud. */
+  const show = (p: Shown) => {
+    setPrompt(p);
+    announce(p, { sound: settings.sound, voice: settings.voice });
+  };
+  const toggleAudio = () => {
+    if (audioOn) hush();
+    updateSettings({ sound: !audioOn, voice: !audioOn });
+  };
+  // Stop talking when leaving the match.
+  useEffect(() => hush, []);
 
   const onRally = (team: Team) => {
     if (match.winner !== null) return;
     const { state, events } = rallyWonBy(match, team);
     setMatch(state);
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
+    setLastLoser(other(team));
     const p = promptForEvents(events, state, spice);
-    if (p) setPrompt(p);
+    if (p) show(p);
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
@@ -74,12 +92,14 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
     const { card, locked } = drawn;
     setRecent((r) => [card.id, ...r].slice(0, 12));
     const pack = PACKS.find((p) => p.id === card.pack);
-    setPrompt({
+    const who = names[lastLoser ?? (Math.random() < 0.5 ? 0 : 1)];
+    show({
       emoji: locked ? '🔒' : '🃏',
       title: locked ? `Sneak peek: ${pack?.name}` : 'Party Card',
-      body: renderPenalty(card.text, spice),
+      body: addressCard(renderPenalty(card.text, spice), card.kind, who),
       card: true,
       lockedPack: locked ? pack?.name : undefined,
+      sound: 'whoosh',
     });
   };
 
@@ -100,7 +120,16 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
         <Pressable onPress={back} hitSlop={12} accessibilityRole="button">
           <Text style={styles.headerBtn}>✕ Quit</Text>
         </Pressable>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Pressable
+          onPress={toggleAudio}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={audioOn ? 'Mute announcer' : 'Turn on announcer'}
+          style={styles.subtitleRow}
+        >
+          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={styles.speaker}>{audioOn ? '🔊' : '🔇'}</Text>
+        </Pressable>
         <Pressable
           onPress={() => setMatch(undo(match))}
           disabled={match.history.length === 0}
@@ -203,7 +232,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
               label={names[t]}
               variant={t === 0 ? 'primary' : 'pink'}
               onPress={() => {
-                setPrompt(momentPrompt(pendingMoment, names[t], spice));
+                show(momentPrompt(pendingMoment, names[t], spice, names[other(t)]));
                 setPendingMoment(null);
               }}
             />
@@ -273,6 +302,8 @@ const styles = StyleSheet.create({
   },
   headerBtn: { color: colors.muted, fontSize: 16, fontWeight: '700' },
   subtitle: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  speaker: { fontSize: 18 },
   rule: {
     marginHorizontal: 16,
     backgroundColor: colors.surface,

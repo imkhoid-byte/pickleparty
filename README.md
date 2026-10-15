@@ -15,6 +15,7 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 
 - **Real pickleball scoring.** Classic side-out doubles (`0-0-2` start, server 1/2), singles, or rally scoring. Play to 7, 11, 15 or 21, win by 2. Undo any tap.
 - **Party engine.** Match events trigger prompts automatically: Game Point, Tied, 🔥 heaters, 👀 Pickle Watch, 🥒 **PICKLED!** (an 11-0 shutout), plus one-tap moments (net ball, ace, kitchen fault, erne/ATP, 10+ rally, body shot, way out).
+- **Announcer.** Sound effects (air horn on a PICKLED!, sad trombone on a net ball, fanfare on a win…) and a voice that reads out the penalty by team name ("Net tax: Lob Squad, take 1 sip"), so nobody has to walk over to the phone. Party Card dares go to the team that just lost a rally. Mute from the match screen (🔊) or the home screen. The sounds are generated from scratch by `scripts/make_sounds.py`, so there's nothing to license.
 - **House Rules.** Each game starts with a random rule card ("Nobody can say *out*, say *pickle*"). Tap it for a different one.
 - **Spice levels.**
   - 🧃 **Chill**: no alcohol at all. Penalties become squats, planks and water. Anyone can play.
