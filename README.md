@@ -1,11 +1,16 @@
 # 🥒 PickleParty
 
-**Keep score. Cause chaos. Don't get pickled.**
+**Play your games. We'll bring the chaos.**
 
-PickleParty is a pickleball scorekeeper crossed with a party game. You keep score
-with one tap per rally, and the app turns big moments (side-outs, game point, a
-shutout "pickle", 4-point streaks, net balls, ernes) into dares, house rules and,
-for players 21+, drinking-game penalties.
+PickleParty turns a normal session of pickleball into a party game. You play
+exactly like you always do: nobody keeps score on a phone mid-rally. Between
+games, someone enters the final score in two taps, and the app:
+
+- picks who plays next (fair rotation or "winners stay", the way groups already rotate),
+- deals a house rule for the next game,
+- reveals the result with penalties (🥒 **PICKLED!** for an 11-0 shutout) and storylines
+  ("🔥 Dee has won 5 straight", "😤 Revenge! Mike got one back on Eli"),
+- and wraps up the night with a shareable recap (MVP, best duo, most pickled).
 
 Built with Expo (React Native + TypeScript), so the same code ships to iOS, Android and the web.
 
@@ -13,22 +18,23 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 
 ## Features
 
-- **Real pickleball scoring.** Classic side-out doubles (`0-0-2` start, server 1/2), singles, or rally scoring. Play to 7, 11, 15 or 21, win by 2. Undo any tap.
-- **Party engine.** Match events trigger prompts automatically: Game Point, Tied, 🔥 heaters, 👀 Pickle Watch, 🥒 **PICKLED!** (an 11-0 shutout), plus one-tap moments (net ball, ace, kitchen fault, erne/ATP, 10+ rally, body shot, way out).
-- **House Rules.** Each game starts with a random rule card ("Nobody can say *out*, say *pickle*"). Tap it for a different one.
+- **Parties.** Add who's at the court once; next time they're one tap away. Doubles or singles, games to 7, 9, 11, 15 or 21. Add or remove people mid-party. A party survives the app being closed.
+- **Two-tap scoring between games.** Who won, then the losing score (`11-7`). Extra-point games (`13-11`) supported.
+- **Results reveal.** Penalties scale with the game: PICKLED!, blowouts, nail-biters. Storylines call out streaks, snapped streaks, revenge, first wins, milestone wins and unbeaten partnerships.
+- **Live score (optional).** Someone sitting out can keep score rally by rally with the full party engine (game point, ties, heaters, Pickle Watch). The result flows back into the party.
+- **House rules, moments and the Party Deck.** A rule for every game; one-tap moments (net ball, ace, kitchen fault, erne/ATP, 10+ rally, body shot, way out); dares, trick shots and group votes anytime.
 - **Spice levels.**
   - 🧃 **Chill**: no alcohol at all. Penalties become squats, planks and water. Anyone can play.
   - 🍺 **Tipsy** / 🔥 **Wild**: sips, and a Pickle Penalty for getting shut out. Unlocked only after the 21+ age gate.
-- **Party Deck.** Dares, trick shots, house rules and group votes, playable anytime (on or off the court).
-- **Stats.** Win/loss rankings by team name, with a count of pickles, saved on the device.
-- **Built for sharing.** You can share any result ("…and PICKLED them 🥒💀") or any card straight to the group chat.
+- **Player stats.** Every game is tracked per person (partners rotate in pickleball), with rankings for everyone.
+- **Built for sharing.** The night's recap, player cards and party cards all share straight to the group chat with a link back to the app.
 
 ### PickleParty Pro (subscription)
 
-- ⚔️ **Crew Stats:** head-to-head rivalries, win streaks, Hall of Shame.
-- 📜 **Unlimited history.** Free players keep every game, but only the latest 10 are visible.
-- 📣 **Recap cards:** a weekly brag sheet to post in the group chat.
-- 🏟️ **Round Robin:** runs open play with rotating partners, fair sit-outs and live standings.
+- ⚔️ **Player profiles:** head-to-head vs everyone, best partner, nemesis, favorite victim, points +/-.
+- 🔄 **Smart rotation:** fair sit-outs with new partners every game, or "winners stay" (capped at 2 games). Free parties shuffle randomly.
+- 📜 **Every game, forever.** Free players keep every game, but only the latest 10 are visible.
+- 🔥 **Streaks & Hall of Shame.**
 - 🃏 **Every Party Pack:** *Kitchen Nightmares*, *Trick Shot Tour*, *After Dark*, *Date Night* and future drops.
 - ✏️ **Custom cards:** your crew's inside jokes, shuffled into the deck.
 
@@ -51,10 +57,10 @@ npm run lint
 src/app/                       screens (Expo Router: one file per route)
 src/screens/                   screen UI
 src/game/scoring.ts            pickleball scoring engine (tested)
-src/game/party.ts              match events → party prompts (tested)
+src/game/party.ts              match events & results → party prompts (tested)
+src/game/players.ts            player records, profiles, storylines, recaps (tested)
+src/game/rotation.ts           who plays next: fair / winners stay / random (tested)
 src/game/cards.ts              card packs: add new cards here
-src/game/crew.ts               rivalries, streaks, recaps (tested)
-src/game/roundRobin.ts         open-play scheduler (tested)
 src/monetization/entitlements.ts  who gets what: trial, Pro, free limits (tested)
 src/purchases.ts               payments via RevenueCat, plus the waitlist
 src/config.ts                  links, payment keys, product ids
@@ -79,15 +85,15 @@ and a test checks that chill mode never mentions alcohol.
 
 | | Free | Pro ($4.99/mo or $29.99/yr) |
 | --- | --- | --- |
-| Scorekeeping, party prompts, Classic deck | ✅ forever | ✅ |
+| Parties, two-tap scoring, results reveal, recap, rankings, Classic deck | ✅ forever | ✅ |
 | Game history | latest 10 visible (all saved) | everything |
-| Crew Stats, recaps, Round Robin, custom cards | sample/locked | ✅ |
+| Player profiles, streaks, smart rotation, custom cards | locked (random rotation) | ✅ |
 | Premium packs | buy one at a time ($2.99, Date Night $3.99) | all included |
 
-- **The free part stays free.** Scoring and the basic party game are how the app spreads, so they're never limited.
-- **14-day reverse trial.** Every new player gets full Pro on day one with no card. When it ends, they keep playing free but lose the crew stats they got used to. That loss is the main reason to subscribe. The app shows one paywall when the trial ends and never interrupts again.
+- **The free part stays free.** Playing a full party and sharing the recap is how the app spreads, so it's never limited.
+- **14-day reverse trial.** Every new player gets full Pro on day one with no card. When it ends, they keep playing free but lose the player profiles and fair rotation they got used to. That loss is the main reason to subscribe. The app shows one paywall when the trial ends and never interrupts again.
 - **Sneak peeks.** Free players sometimes draw a real card from a locked pack, mid-party, when they're most likely to want more.
-- **One phone runs the game,** so one organizer's subscription covers their whole crew at their matches.
+- **One phone runs the party,** so one organizer's subscription covers their whole crew. Organizers feel the pain of "who's up next?" most, and smart rotation solves it.
 
 ### Before payments are live: the waitlist
 

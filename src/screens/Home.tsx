@@ -3,17 +3,18 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
+import { playerRecords } from '../game/players';
 import { SPICES, isAlcoholic } from '../game/spice';
-import { leaderboard } from '../game/stats';
 import { autoPaywall } from '../monetization/entitlements';
 import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
 export function Home() {
-  const { settings, updateSettings, history, access } = useApp();
-  const champ = leaderboard(history)[0];
+  const { settings, updateSettings, history, access, session } = useApp();
+  const champ = playerRecords(history)[0];
   const pickles = history.filter((g) => g.pickled).length;
+  const partyGames = session ? history.filter((g) => g.sessionId === session.id).length : 0;
 
   // The only automatic paywall: once, right after the free trial ends.
   useEffect(() => {
@@ -30,21 +31,25 @@ export function Home() {
         <Text style={styles.logoEmoji}>🥒</Text>
         <Text style={styles.logo}>PICKLE</Text>
         <Text style={[styles.logo, { color: colors.pink, marginTop: -14 }]}>PARTY</Text>
-        <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
+        <Text style={styles.tagline}>Play your games. We&apos;ll bring the chaos.</Text>
       </View>
 
       <ProBadge />
 
-      <Button label="🏓  Start a Match" onPress={() => router.push('/setup')} />
-      <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
+      {session ? (
+        <>
+          <Button
+            label={`▶️  Back to the party (${partyGames} game${partyGames === 1 ? '' : 's'})`}
+            onPress={() => router.push('/party')}
+          />
+          <Text style={styles.muted}>Party in progress with {session.present.join(', ')}.</Text>
+        </>
+      ) : (
+        <Button label="🥒  Start a Party" onPress={() => router.push('/party/new')} />
+      )}
+      <Button label="🃏  Party Deck" variant="pink" onPress={() => router.push('/deck')} />
       <View style={styles.grid}>
         <Button label="🏆 Stats" variant="secondary" style={styles.cell} onPress={() => router.push('/stats')} />
-        <Button
-          label="🏟️ Round Robin"
-          variant="secondary"
-          style={styles.cell}
-          onPress={() => (access.isPro ? router.push('/roundrobin') : openPaywall('roundRobin'))}
-        />
         <Button label="🎁 Packs" variant="secondary" style={styles.cell} onPress={() => router.push('/packs')} />
         <Button
           label="✏️ My Cards"
@@ -80,6 +85,15 @@ export function Home() {
           <Stat value={champ ? champ.name : '—'} label="top dog" />
         </View>
       )}
+
+      {!session && history.length === 0 && (
+        <View style={styles.how}>
+          <Text style={styles.howTitle}>How it works</Text>
+          <Text style={styles.muted}>1. Add who&apos;s playing. The app picks teams and a house rule.</Text>
+          <Text style={styles.muted}>2. Play like normal. Phone stays on the bench.</Text>
+          <Text style={styles.muted}>3. Enter the score after each game. Losers pay up. 🥒</Text>
+        </View>
+      )}
     </Screen>
   );
 }
@@ -99,7 +113,7 @@ function ProBadge() {
       <Text style={styles.badgeText}>
         {trial
           ? `👑 Pro trial: ${access.trialDaysLeft} day${access.trialDaysLeft === 1 ? '' : 's'} left`
-          : '👑 Go Pro: crew stats, round robins & every pack'}
+          : '👑 Go Pro: player stats, fair rotation & every pack'}
       </Text>
       <Text style={[styles.badgeText, { color: trial ? colors.orange : colors.pink }]}>
         {trial ? 'Keep it →' : 'See →'}
@@ -120,14 +134,14 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: 16 },
-  logoEmoji: { fontSize: 56, transform: [{ rotate: '-20deg' }] },
-  logo: { color: colors.pickle, fontSize: 60, fontWeight: '900', letterSpacing: 2 },
+  hero: { alignItems: 'center', paddingVertical: 12 },
+  logoEmoji: { fontSize: 52, transform: [{ rotate: '-20deg' }] },
+  logo: { color: colors.pickle, fontSize: 58, fontWeight: '900', letterSpacing: 2 },
   tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cell: { flexBasis: '46%', flexGrow: 1, paddingVertical: 14 },
+  grid: { flexDirection: 'row', gap: 10 },
+  cell: { flex: 1, paddingVertical: 14, paddingHorizontal: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  muted: { color: colors.muted, fontSize: 14 },
+  muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   link: { color: colors.sky, fontSize: 14, fontWeight: '700' },
   badge: {
     flexDirection: 'row',
@@ -148,4 +162,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  how: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, gap: 6 },
+  howTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
 });

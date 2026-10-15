@@ -24,20 +24,27 @@ const HEADLINES: Record<PaywallReason, { emoji: string; title: string; sub: stri
     title: 'Your Pro trial ended',
     sub: 'Your stats are all still saved. Keep Pro to keep the rivalries going.',
   },
-  crewStats: { emoji: '⚔️', title: 'Settle it for good', sub: 'Head-to-head records, streaks and the Hall of Shame.' },
+  playerStats: {
+    emoji: '⚔️',
+    title: 'Settle it for good',
+    sub: "Everyone's all-time record, head-to-head, best partner and nemesis.",
+  },
   history: { emoji: '📜', title: 'Every game, forever', sub: 'Free keeps your latest 10. Pro keeps them all.' },
-  recap: { emoji: '📣', title: 'Brag about your week', sub: 'Recap cards made for the group chat.' },
-  roundRobin: { emoji: '🏟️', title: 'Run open play like a pro', sub: 'Rotating partners, fair sit-outs, live standings.' },
+  rotation: {
+    emoji: '🔄',
+    title: 'Nobody sits out twice',
+    sub: 'Fair rotation mixes partners every game, or let winners stay on.',
+  },
   pack: { emoji: '🃏', title: 'Every pack. Every drop.', sub: 'All Party Packs today, plus new ones as they land.' },
   customCards: { emoji: '✏️', title: 'Your crew, your cards', sub: 'Put your inside jokes in the deck.' },
   upgrade: { emoji: '👑', title: 'PickleParty Pro', sub: 'For crews who play every week.' },
 };
 
 const BENEFITS = [
-  ['⚔️', 'Crew Stats', 'Rivalries, win streaks, Hall of Shame'],
-  ['📜', 'Unlimited history', 'Free shows your latest 10 games'],
-  ['📣', 'Recap cards', 'Weekly brag sheets for the group chat'],
-  ['🏟️', 'Round Robin', 'Run open play: partners, sit-outs, standings'],
+  ['⚔️', 'Player profiles', 'Head-to-head, best partner, nemesis'],
+  ['🔄', 'Smart rotation', 'Fair sit-outs & new partners, or winners stay'],
+  ['📜', 'Every game, forever', 'Free shows your latest 10'],
+  ['🔥', 'Streaks & Hall of Shame', "Who's on fire, who keeps getting pickled"],
   ['🃏', 'Every Party Pack', 'Plus new packs as they drop'],
   ['✏️', 'Custom cards', "Your crew's inside jokes, in the deck"],
 ];
@@ -92,7 +99,7 @@ export function Paywall({ reason }: { reason: PaywallReason }) {
           </View>
         ))}
         <Text style={styles.crew}>
-          One phone runs the game, so everyone you play with gets Pro features at your matches.
+          One phone runs the party, so your whole crew gets Pro whenever you play together.
         </Text>
       </Card>
 

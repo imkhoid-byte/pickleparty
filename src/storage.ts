@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
-import { Team } from './game/scoring';
+import { Format, Team } from './game/scoring';
 import { Spice } from './game/spice';
 
 export interface Settings {
@@ -23,6 +23,8 @@ export interface Settings {
   dateNightConsent: boolean;
   /** Pro: the crew's own cards. */
   customCards: { id: string; text: string }[];
+  /** Everyone this phone has played with, most recent first. */
+  crew: string[];
 }
 
 export interface GameRecord {
@@ -32,7 +34,29 @@ export interface GameRecord {
   scores: [number, number];
   winner: Team;
   pickled: boolean;
+  /** 0 when the score was entered after the game instead of rally by rally. */
   rallies: number;
+  /** Player names per side (one each for singles). Older games only have team names. */
+  players?: [string[], string[]];
+  /** The party (session) this game was played in. */
+  sessionId?: string;
+}
+
+export type RotationMode = 'mix' | 'winnersStay' | 'random';
+
+/** A night of games with the same group. Saved so it survives the app being closed. */
+export interface PartySession {
+  id: string;
+  startedAt: number;
+  /** Who is here right now. */
+  present: string[];
+  format: Format;
+  target: number;
+  rotation: RotationMode;
+  upNext: [string[], string[]] | null;
+  houseRuleId: string | null;
+  /** Last game whose results reveal was shown. */
+  revealedGameId: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -47,11 +71,13 @@ export const DEFAULT_SETTINGS: Settings = {
   trialEndedPaywallShown: false,
   dateNightConsent: false,
   customCards: [],
+  crew: [],
 };
 
 const SETTINGS_KEY = 'pickleparty.settings.v1';
 const HISTORY_KEY = 'pickleparty.history.v1';
-const MAX_HISTORY = 200;
+const SESSION_KEY = 'pickleparty.session.v1';
+const MAX_HISTORY = 5000;
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -82,4 +108,13 @@ export async function addGame(record: GameRecord): Promise<GameRecord[]> {
 
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
+}
+
+export async function loadSession(): Promise<PartySession | null> {
+  return readJson<PartySession | null>(SESSION_KEY, null);
+}
+
+export async function saveSession(session: PartySession | null): Promise<void> {
+  if (session) await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  else await AsyncStorage.removeItem(SESSION_KEY);
 }

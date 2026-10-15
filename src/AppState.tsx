@@ -3,14 +3,18 @@ import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, 
 import { Card, PACKS, PackId, cardsForPacks, customCards } from './game/cards';
 import { Access, computeAccess, usablePacks } from './monetization/entitlements';
 import { StoreState, fetchStoreState } from './purchases';
+import { nameKey } from './game/players';
 import {
   DEFAULT_SETTINGS,
   GameRecord,
+  PartySession,
   Settings,
   addGame,
   clearHistory,
   loadHistory,
+  loadSession,
   loadSettings,
+  saveSession,
   saveSettings,
 } from './storage';
 
@@ -27,6 +31,11 @@ interface AppState {
   recordGame: (record: GameRecord) => void;
   resetHistory: () => void;
   applyStoreState: (state: StoreState) => void;
+  /** The party in progress, if any. */
+  session: PartySession | null;
+  setSession: (next: PartySession | null) => void;
+  /** Remember names so next time they're one tap away. */
+  rememberPlayers: (names: string[]) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -35,6 +44,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [history, setHistory] = useState<GameRecord[]>([]);
+  const [session, setSessionState] = useState<PartySession | null>(null);
   // Re-evaluated on every render that matters; trial expiry only needs day precision.
   const [now, setNow] = useState(() => Date.now());
 
@@ -61,7 +71,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    Promise.all([loadSettings(), loadHistory()]).then(([s, h]) => {
+    Promise.all([loadSettings(), loadHistory(), loadSession()]).then(([s, h, party]) => {
+      setSessionState(party);
       // Players from before the trial existed start theirs now.
       const loaded = s.ageAsked && s.trialStartedAt === null ? { ...s, trialStartedAt: Date.now() } : s;
       setSettings(loaded);
@@ -98,6 +109,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     addGame(record).catch(() => {});
   }, []);
 
+  const setSession = useCallback((next: PartySession | null) => {
+    setSessionState(next);
+    saveSession(next).catch(() => {});
+  }, []);
+
+  const rememberPlayers = useCallback(
+    (names: string[]) =>
+      setSettings((prev) => {
+        const keys = new Set(names.map(nameKey));
+        const crew = [...names, ...prev.crew.filter((n) => !keys.has(nameKey(n)))].slice(0, 60);
+        const next = { ...prev, crew };
+        saveSettings(next).catch(() => {});
+        return next;
+      }),
+    [],
+  );
+
   const resetHistory = useCallback(() => {
     setHistory([]);
     clearHistory().catch(() => {});
@@ -116,6 +144,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         recordGame,
         resetHistory,
         applyStoreState,
+        session,
+        setSession,
+        rememberPlayers,
       }}
     >
       {children}
