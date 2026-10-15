@@ -27,6 +27,7 @@ import { goBack, openPaywall } from '../navigation';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
+import { useScreenAwake } from '../ui/useScreenAwake';
 
 export function shareText(s: MatchState): string {
   if (s.winner === null) return '';
@@ -62,6 +63,19 @@ function pendingWaterBreak(history: GameRecord[]): string | null {
 /** A prompt on screen. Cards can be passed; samples from locked packs offer an unlock. */
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
+/**
+ * Everyday prompts (side-outs, moments, heaters…) show as a banner that never
+ * blocks scoring, so nobody has to walk over to dismiss it. Cards and the big
+ * game-ending moments still take over the screen: everyone's looking then anyway.
+ */
+const isBanner = (p: Shown) => !p.card && !p.big;
+
+/** Long enough for the announcer to finish reading it. */
+const bannerTime = (p: Shown) => {
+  const words = `${p.title} ${p.body}`.split(/\s+/).length;
+  return Math.min(15000, Math.max(6000, 3000 + words * 450));
+};
+
 export function Match({
   config,
   firstServer,
@@ -73,6 +87,8 @@ export function Match({
   roundRobin?: RRLink;
 }) {
   const { settings, updateSettings, recordGame, deck, lockedCards, access, history, reportRoundRobin } = useApp();
+  useScreenAwake();
+  const sun = settings.sunlight;
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
@@ -105,6 +121,13 @@ export function Match({
   // Stop talking when leaving the match.
   useEffect(() => hush, []);
 
+  // Banners fade on their own once they've been read out.
+  useEffect(() => {
+    if (!prompt || !isBanner(prompt)) return;
+    const timer = setTimeout(() => setPrompt((p) => (p === prompt ? null : p)), bannerTime(prompt));
+    return () => clearTimeout(timer);
+  }, [prompt]);
+
   // Announce an opening water break.
   useEffect(() => {
     if (prompt !== WATER_BREAK) return;
@@ -126,6 +149,8 @@ export function Match({
     const p = promptForEvents(events, state, spice);
     const next = p?.big ? p : (moment ?? p);
     if (next) show(next);
+    // Play has moved on: an old banner would now be out of date.
+    else if (prompt && isBanner(prompt)) setPrompt(null);
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
@@ -166,10 +191,10 @@ export function Match({
   }`;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, sun && styles.sunBg]}>
       <View style={styles.header}>
         <Pressable onPress={back} hitSlop={12} accessibilityRole="button">
-          <Text style={styles.headerBtn}>✕ Quit</Text>
+          <Text style={[styles.headerBtn, sun && styles.sunMuted]}>✕ Quit</Text>
         </Pressable>
         <Pressable
           onPress={toggleAudio}
@@ -178,8 +203,16 @@ export function Match({
           accessibilityLabel={audioOn ? 'Mute announcer' : 'Turn on announcer'}
           style={styles.subtitleRow}
         >
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={[styles.subtitle, sun && styles.sunMuted]}>{subtitle}</Text>
           <Text style={styles.speaker}>{audioOn ? '🔊' : '🔇'}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => updateSettings({ sunlight: !sun })}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={sun ? 'Turn off sunlight mode' : 'Sunlight mode: brighter, bigger text'}
+        >
+          <Text style={[styles.speaker, !sun && { opacity: 0.5 }]}>☀️</Text>
         </Pressable>
         <Pressable
           onPress={() => {
@@ -191,27 +224,43 @@ export function Match({
           hitSlop={12}
           accessibilityRole="button"
         >
-          <Text style={[styles.headerBtn, match.history.length === 0 && { opacity: 0.3 }]}>↶ Undo</Text>
+          <Text style={[styles.headerBtn, sun && styles.sunMuted, match.history.length === 0 && { opacity: 0.3 }]}>↶ Undo</Text>
         </Pressable>
       </View>
 
+      <View>
       {houseRule && (
         <Pressable
-          style={styles.rule}
+          style={[styles.rule, sun && styles.sunSurface]}
           onPress={() => setHouseRule(drawCard(rules, [houseRule.id]))}
           accessibilityHint="Draw a different house rule"
         >
-          <Text style={styles.ruleText} numberOfLines={3}>
+          <Text style={[styles.ruleText, sun && styles.sunRuleText]} numberOfLines={3}>
             📜 <Text style={styles.ruleLabel}>House rule: </Text>
             {houseRuleText}
           </Text>
-          <Text style={styles.ruleHint}>tap for new rule</Text>
+          <Text style={[styles.ruleHint, sun && styles.sunMuted]}>tap for new rule</Text>
         </Pressable>
       )}
 
       <Text style={styles.call} accessibilityLabel={`Score ${callScore(match)}`}>
         {callScore(match)}
       </Text>
+      {focused && prompt && isBanner(prompt) && (
+        <Pressable
+          onPress={() => setPrompt(null)}
+          accessibilityRole="button"
+          accessibilityHint="Dismiss"
+          style={[styles.banner, { borderColor: colors.pickle }]}
+        >
+          <Text style={styles.bannerTitle}>
+            {prompt.emoji} {prompt.title}
+          </Text>
+          <Text style={styles.bannerBody}>{prompt.body}</Text>
+          {spice === 'wild' && <Text style={styles.bannerFoot}>Not feeling the act? Skip it, no questions asked.</Text>}
+        </Pressable>
+      )}
+      </View>
 
       <View style={styles.courts}>
         {([0, 1] as Team[]).map((t) => {
@@ -224,6 +273,7 @@ export function Match({
               accessibilityLabel={`${names[t]} won the rally`}
               style={({ pressed }) => [
                 styles.team,
+                sun && styles.sunSurface,
                 { borderColor: serving ? teamColors[t] : colors.surfaceHi },
                 pressed && { transform: [{ scale: 0.98 }], backgroundColor: colors.surfaceHi },
               ]}
@@ -232,7 +282,7 @@ export function Match({
                 <Text style={[styles.teamName, { color: teamColors[t] }]} numberOfLines={1}>
                   {names[t]}
                 </Text>
-                <Text style={styles.serveTag}>
+                <Text style={[styles.serveTag, sun && styles.sunServeTag]}>
                   {serving
                     ? `🏓 Serving${
                         config.format === 'doubles' && config.scoring === 'sideout'
@@ -262,11 +312,11 @@ export function Match({
               tap(settings.haptics);
               setPendingMoment(m.id);
             }}
-            style={styles.moment}
+            style={[styles.moment, sun && styles.sunSurface]}
             accessibilityRole="button"
           >
             <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
-            <Text style={styles.momentText}>{m.label}</Text>
+            <Text style={[styles.momentText, sun && styles.sunMomentText]}>{m.label}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -299,7 +349,7 @@ export function Match({
             />
           ))}
         </Takeover>
-      ) : prompt !== null ? (
+      ) : prompt !== null && !isBanner(prompt) ? (
         <Takeover
           visible
           emoji={prompt.emoji}
@@ -329,7 +379,7 @@ export function Match({
         </Takeover>
       ) : (
         <Takeover
-          visible={match.winner !== null}
+          visible={match.winner !== null && prompt === null}
           emoji={match.winner !== null && match.scores[other(match.winner)] === 0 ? '🥒' : '🏆'}
           title={match.winner !== null ? winsTitle(names[match.winner]) : ''}
           body={`${match.scores[0]} – ${match.scores[1]} · ${match.rallies} rallies`}
@@ -412,4 +462,29 @@ const styles = StyleSheet.create({
     minWidth: 78,
   },
   momentText: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  banner: {
+    position: 'absolute',
+    top: 0,
+    left: 16,
+    right: 16,
+    minHeight: '100%',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceHi,
+    borderRadius: radius.md,
+    borderWidth: 3,
+    padding: 14,
+    gap: 4,
+    zIndex: 10,
+    elevation: 10,
+  },
+  bannerTitle: { color: colors.pickle, fontSize: 20, fontWeight: '900' },
+  bannerBody: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 24 },
+  bannerFoot: { color: colors.muted, fontSize: 12, marginTop: 4 },
+  // Sunlight mode: pure black, brighter and bigger text, so it reads outdoors at noon.
+  sunBg: { backgroundColor: '#000000' },
+  sunSurface: { backgroundColor: '#111111' },
+  sunMuted: { color: '#FFFFFF' },
+  sunRuleText: { fontSize: 17, fontWeight: '800' },
+  sunServeTag: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  sunMomentText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 });

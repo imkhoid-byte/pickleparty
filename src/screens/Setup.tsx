@@ -142,6 +142,16 @@ export function Setup() {
       </View>
 
       <Button label="Let's Dink 🥒" onPress={start} style={{ marginTop: 12 }} />
+      <View style={styles.tips}>
+        <Text style={styles.tip}>
+          📱 <Text style={styles.tipBold}>Pick a Hype Man.</Text> Someone sitting out (or the closest player) keeps
+          the phone, taps who won each rally and calls the moments.
+        </Text>
+        <Text style={styles.tip}>
+          🔊 <Text style={styles.tipBold}>Got a Bluetooth speaker?</Text> Connect it so the whole court hears the
+          announcer.
+        </Text>
+      </View>
     </Screen>
   );
 }
@@ -151,6 +161,8 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
     flex: 1,
+    // Lets the box shrink so the 🎲 button fits beside it (browsers give inputs a minimum width).
+    minWidth: 0,
     color: colors.text,
     fontSize: 20,
     fontWeight: '800',
@@ -161,4 +173,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   hint: { color: colors.muted, fontSize: 14 },
+  tips: { gap: 10, backgroundColor: colors.surface, borderRadius: radius.md, padding: 14 },
+  tip: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  tipBold: { color: colors.text, fontWeight: '800' },
 });

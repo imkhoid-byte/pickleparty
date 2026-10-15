@@ -13,6 +13,9 @@ export function RoundRobin() {
   return roundRobin && roundRobin.rounds.length > 0 ? <Session /> : <NewSession />;
 }
 
+/** Someone sitting out runs the phone, taking turns from round to round. */
+const hypeMan = (byes: string[], round: number) => byes[round % byes.length];
+
 /** Add the players, pick courts and game length, start round 1. */
 function NewSession() {
   const { setRoundRobin } = useApp();
@@ -153,7 +156,15 @@ function Session() {
           )}
         </Card>
       ))}
-      {current.byes.length > 0 && <Text style={styles.intro}>Sitting out: {current.byes.join(', ')}</Text>}
+      {current.byes.length > 0 && (
+        <Card>
+          <Text style={styles.hype}>📱 Hype Man: {hypeMan(current.byes, roundIndex)}</Text>
+          <Text style={styles.intro}>
+            Sitting out this round? You run the phone: score the game, call the moments and draw the cards.
+            {current.byes.length > 1 ? ` Also sitting out: ${current.byes.filter((p) => p !== hypeMan(current.byes, roundIndex)).join(', ')}.` : ''}
+          </Text>
+        </Card>
+      )}
 
       <Button
         label={allScored ? `Start round ${rounds.length + 1}` : 'Finish every court to continue'}
@@ -224,6 +235,7 @@ function Session() {
 
 const styles = StyleSheet.create({
   intro: { color: colors.muted, fontSize: 15, lineHeight: 21 },
+  hype: { color: colors.pickle, fontSize: 18, fontWeight: '900' },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
     flex: 1,

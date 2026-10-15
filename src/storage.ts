@@ -20,6 +20,8 @@ export interface Settings {
   sound: boolean;
   /** Read penalties out loud with the team names. */
   voice: boolean;
+  /** High-contrast match screen for playing outdoors. */
+  sunlight: boolean;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -52,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   sound: true,
   voice: true,
+  sunlight: false,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,
