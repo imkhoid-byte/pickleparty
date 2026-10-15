@@ -148,13 +148,32 @@ describe('announcer personalities', () => {
   it('classic reads it straight', () => {
     expect(announcerScript(prompt, 'classic', () => 0).text).toBe('Net Tax! Lob Squad, take 1 sip.');
   });
-  it('characters add a mood-matched intro and sometimes a pun', () => {
+  it('Squeaky Pickle shouts everything and repeats itself', () => {
     const s = announcerScript(prompt, 'squeaky', () => 0);
-    expect(s.text).toBe('Uh-oh, spaghetti-o! Net Tax! Lob Squad, take 1 sip. Brine time!');
-    expect(announcerScript(prompt, 'squeaky', () => 0).pitch).toBeGreaterThan(1.5);
-    expect(announcerScript(prompt, 'bigdill', () => 0).pitch).toBeLessThan(0.7);
-    const quiet = announcerScript(prompt, 'bigdill', () => 0.99);
-    expect(quiet.text).toBe('Net Tax! Lob Squad, take 1 sip.');
+    expect(s.text).toBe("Uh-oh, spaghetti-o! Net Tax! Net Tax! Lob Squad, take 1 sip! I'm telling!");
+    expect(s.pitch).toBeGreaterThan(1.5);
+    expect(s.pitch * s.pitchScale).toBeLessThanOrEqual(2);
+  });
+  it('Big Dill is understated and terribly polite', () => {
+    const s = announcerScript(prompt, 'bigdill', () => 0);
+    expect(s.text).toBe(
+      "Oh dear. Oh dear, oh dear. Net Tax. Lob Squad, kindly take 1 sip. My grandmother plays with more conviction, and she's a hundred and four.",
+    );
+    expect(s.pitch).toBeLessThan(0.7);
+    expect(announcerScript(prompt, 'bigdill', () => 0.99).text).toBe('Net Tax. Lob Squad, kindly take 1 sip.');
+  });
+  it('characters keep every name and number, and never mention drinks themselves', () => {
+    const chill = { title: 'Tied at 8', body: 'Dink Floyd and Lob Squad, everybody do 10 squats.', sound: 'boing' as const };
+    for (const id of ['squeaky', 'bigdill'] as const) {
+      for (let i = 0; i < 200; i++) {
+        const t = announcerScript(chill, id).text;
+        expect(t).toMatch(/Dink Floyd.*Lob Squad.*10 squats/);
+        expect(t.toLowerCase()).not.toMatch(/\b(sip|drink|beer|booze|gulp|shot)\b/);
+      }
+    }
+  });
+  it('every announcer introduces itself', () => {
+    for (const a of ANNOUNCERS) expect(a.preview.length).toBeGreaterThan(10);
   });
   it('Hype is gone; a saved Hype setting falls back to the default', () => {
     expect(ANNOUNCERS.map((a) => a.id)).toEqual(['squeaky', 'bigdill', 'classic']);
@@ -206,8 +225,8 @@ describe('announcer voices', () => {
   });
   it('Big Dill uses a male voice, or deepens the default voice when there is none', () => {
     const dill = ANNOUNCERS.find((a) => a.id === 'bigdill')!;
-    expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.85 });
-    expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.85 });
+    expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.82 });
+    expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.82 });
     const squeaky = ANNOUNCERS.find((a) => a.id === 'squeaky')!;
     expect(voiceSettings(squeaky, 'evan').voice).toBeUndefined();
   });

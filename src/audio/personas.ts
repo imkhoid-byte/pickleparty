@@ -11,6 +11,8 @@ export interface Announcer {
   label: string;
   emoji: string;
   blurb: string;
+  /** What it says when tapped on the home screen. */
+  preview: string;
   pitch: number;
   rate: number;
   /** Use a male voice when the phone has one. */
@@ -24,20 +26,30 @@ export interface Announcer {
 }
 
 export const ANNOUNCERS: Announcer[] = [
-  { id: 'squeaky', label: 'Squeaky Pickle', emoji: '🐿️', blurb: 'A very small, very excited pickle.', pitch: 1.9, rate: 1.1, pro: true },
+  {
+    id: 'squeaky',
+    label: 'Squeaky Pickle',
+    emoji: '🐿️',
+    blurb: 'A tiny pickle who has had way too much juice.',
+    preview: "Hiii! I'm Squeaky Pickle and I'm gonna call EVERY point! Every single one! Okay okay okay, let's go!",
+    pitch: 1.9,
+    rate: 1.2,
+    pro: true,
+  },
   {
     id: 'bigdill',
     label: 'Big Dill',
     emoji: '🥒',
     blurb: 'A terribly posh British gentleman, far too polite about your terrible shots.',
+    preview: 'Good afternoon. I am Big Dill, and I shall be announcing your little game. Do try not to embarrass yourselves.',
     pitch: 0.65,
-    rate: 0.85,
+    rate: 0.82,
     male: true,
     accent: 'en-GB',
     fallbackPitch: 0.55,
     pro: true,
   },
-  { id: 'classic', label: 'Classic', emoji: '📢', blurb: 'Just the facts.', pitch: 1, rate: 1 },
+  { id: 'classic', label: 'Classic', emoji: '📢', blurb: 'Just the facts.', preview: "Let's dink, pickle people!", pitch: 1, rate: 1 },
 ];
 
 type Mood = 'hype' | 'shame' | 'drama' | 'neutral';
@@ -55,23 +67,86 @@ const MOOD: Record<SoundId, Mood> = {
   whoosh: 'neutral',
 };
 
-const INTROS: Record<Exclude<AnnouncerId, 'classic'>, Record<Mood, string[]>> = {
+/** How a character talks: what it says before and after a prompt, and how it rewords it. */
+interface Character {
+  intros: Record<Mood, string[]>;
+  outros: Record<Mood, string[]>;
+  /** Rewords the prompt in the character's voice. Must keep every name and number. */
+  restyle: (core: string, rng: () => number) => string;
+  /** Per-line pitch change, so the voice doesn't sound the same every time. */
+  pitchScale: (rng: () => number) => number;
+}
+
+// Lines never mention drinks: the same announcer also runs alcohol-free Chill mode.
+const CHARACTERS: Record<Exclude<AnnouncerId, 'classic'>, Character> = {
+  // The little kid at the party who has had way too much juice.
   squeaky: {
-    hype: ['Wheee!', 'Yippee!', 'Holy pickles!'],
-    shame: ['Uh-oh, spaghetti-o!', 'Oopsie daisy!', 'Ouchie!'],
-    drama: ['Ooooh, ooooh!', "I can't look!"],
-    neutral: ['Hiii!', 'Guess what, guess what!'],
+    intros: {
+      hype: ['Wheee!', 'Yippee!', 'Holy pickles!', 'OH MY GOSH OH MY GOSH!', 'That was SO cool!'],
+      shame: [
+        'Uh-oh, spaghetti-o!',
+        'Oopsie daisy!',
+        'Ouchie!',
+        "Ooooh, you're in trouble!",
+        "Hahaha! I'm not laughing. Okay, I'm laughing.",
+      ],
+      drama: ['Ooooh, ooooh!', "I can't look!", 'Is it gonna happen? Is it gonna happen?'],
+      neutral: ['Hiii!', 'Guess what, guess what!', 'Hey. Hey. Hey. Hey!', 'Okay okay okay okay!'],
+    },
+    outros: {
+      hype: ['Again! Again!', 'Best day EVER!', "I'm gonna tell everyone at school!", 'Can I have a turn?'],
+      shame: ["I'm telling!", 'Nah nah nah nah boo boo!', "That's what you get!", 'Hehehe.'],
+      drama: ["I have to pee but I'm NOT leaving!", 'This is better than cartoons!'],
+      neutral: ['Are we there yet?', 'Can we get ice cream after?', 'Did you see that? Did you see that?!', "I'm not tired. You're tired."],
+    },
+    restyle: (core, rng) => {
+      // Everything is exciting. Sometimes it says the headline twice, because it can.
+      const loud = core.replace(/\.(?=\s|$)/g, '!');
+      const title = loud.match(/^[^!?]+[!?]/)?.[0];
+      return title && rng() < 0.4 ? `${title} ${loud}` : loud;
+    },
+    pitchScale: (rng) => 0.95 + rng() * 0.1,
   },
+  // A terribly posh British gentleman. Never raises his voice; deeply disappointed in your footwork.
   bigdill: {
-    hype: ['I say! Splendid!', 'Jolly good show!', 'Oh, magnificent. Simply magnificent.', 'Bravo, old sport!'],
-    shame: [
-      'Oh dear. Oh dear, oh dear.',
-      'How dreadfully unfortunate.',
-      'Rather embarrassing, old chap.',
-      'We shan’t speak of this again.',
-    ],
-    drama: ['Steady on, everyone.', 'Do keep calm and carry on.', 'The tension is positively unbearable.'],
-    neutral: ['Ahem. If I may.', 'Right then.', 'Pip pip.'],
+    intros: {
+      hype: [
+        'I say! Splendid!',
+        'Jolly good show!',
+        'Oh, magnificent. Simply magnificent.',
+        'Bravo, old sport!',
+        'Good heavens!',
+        'Somebody fetch my monocle.',
+      ],
+      shame: [
+        'Oh dear. Oh dear, oh dear.',
+        'How dreadfully unfortunate.',
+        'Rather embarrassing, old chap.',
+        'We shan’t speak of this again.',
+        'Oh, crikey.',
+      ],
+      drama: ['Steady on, everyone.', 'Do keep calm and carry on.', 'The tension is positively unbearable.', 'Hold my Earl Grey.'],
+      neutral: ['Ahem. If I may.', 'Right then.', 'Pip pip.', 'Do pardon the interruption.'],
+    },
+    outros: {
+      hype: ['I may need a lie-down.', 'Do write home about it.', 'Utterly smashing. Quite literally.'],
+      shame: [
+        "My grandmother plays with more conviction, and she's a hundred and four.",
+        'One does try not to judge. One fails.',
+        "I've seen better footwork from a garden gnome.",
+        'Most irregular.',
+      ],
+      drama: ['My monocle has fallen into my tea.', 'I find myself perched on the edge of my chaise longue.'],
+      neutral: ['Tally ho.', 'Carry on.', 'Frightfully good fun, this.', 'Cheerio.'],
+    },
+    restyle: (core) =>
+      core
+        // British understatement: nothing is worth an exclamation mark.
+        .replace(/!/g, '.')
+        // Ever so polite about penalties.
+        .replace(/\b(take|do|hold|run|finish)\b/i, 'kindly $1')
+        .replace(/\beverybody\b/gi, 'one and all'),
+    pitchScale: () => 1,
   },
 };
 
@@ -98,14 +173,17 @@ export function announcerScript(
   prompt: Pick<PartyPrompt, 'title' | 'body' | 'sound'>,
   id: AnnouncerId,
   rng: () => number = Math.random,
-): { text: string; pitch: number; rate: number } {
+): { text: string; pitch: number; rate: number; pitchScale: number } {
   const a = announcerFor(id);
   const core = speechText(prompt);
-  if (a.id === 'classic') return { text: core, pitch: a.pitch, rate: a.rate };
+  if (a.id === 'classic') return { text: core, pitch: a.pitch, rate: a.rate, pitchScale: 1 };
+  const c = CHARACTERS[a.id];
   const mood = prompt.sound ? MOOD[prompt.sound] : 'neutral';
-  const intro = rng() < 0.8 ? `${pick(INTROS[a.id][mood], rng)} ` : '';
-  const outro = rng() < 0.45 ? ` ${pick(PUNS, rng)}` : '';
-  return { text: `${intro}${core}${outro}`, pitch: a.pitch, rate: a.rate };
+  const intro = rng() < 0.8 ? `${pick(c.intros[mood], rng)} ` : '';
+  // Sign off in character most of the time, with the odd pickle pun.
+  const roll = rng();
+  const outro = roll < 0.4 ? ` ${pick(c.outros[mood], rng)}` : roll < 0.55 ? ` ${pick(PUNS, rng)}` : '';
+  return { text: `${intro}${c.restyle(core, rng)}${outro}`, pitch: a.pitch, rate: a.rate, pitchScale: c.pitchScale(rng) };
 }
 
 // --- Choosing a voice ---------------------------------------------------------

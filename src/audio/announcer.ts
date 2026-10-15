@@ -150,11 +150,12 @@ export function announce(
   if (withSound) playSound(prompt.sound!);
   if (!opts.voice) return;
   const id = announcerFor(opts.announcer ?? '').id;
-  const { text } = announcerScript(prompt, id);
+  const { text, pitchScale } = announcerScript(prompt, id);
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {
     pendingVoice = null;
-    speak(text, settingsFor(id));
+    const v = settingsFor(id);
+    speak(text, { ...v, pitch: Math.min(2, v.pitch * pitchScale) });
   }, delay);
 }
 
@@ -165,6 +166,6 @@ export function announce(
 export function previewAnnouncer(id: AnnouncerId) {
   unlockAudio();
   hush();
-  const { text } = announcerScript({ title: 'Brine time', body: "Let's dink, pickle people!", sound: 'kazoo' }, id);
-  speak(text, settingsFor(id));
+  // Each character introduces itself, in character.
+  speak(announcerFor(id).preview, settingsFor(id));
 }
