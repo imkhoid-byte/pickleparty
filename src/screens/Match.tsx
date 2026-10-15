@@ -8,7 +8,16 @@ import { useApp } from '../AppState';
 import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
 import { Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
-import { MOMENTS, MomentId, PartyPrompt, momentPrompt, momentRallyWinner, promptForEvents } from '../game/party';
+import {
+  MOMENTS,
+  MomentId,
+  PartyPrompt,
+  WATER_BREAK,
+  momentPrompt,
+  momentRallyWinner,
+  promptForEvents,
+  waterBreakDue,
+} from '../game/party';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
 import { goBack, openPaywall } from '../navigation';
@@ -38,18 +47,28 @@ function gameRecord(s: MatchState): GameRecord {
   };
 }
 
+/** The game that last triggered a water break, so one break is only shown once. */
+let lastWaterBreak: string | null = null;
+
+/** The game id a water break is due for (every two games), if it hasn't been shown yet. */
+function pendingWaterBreak(history: GameRecord[]): string | null {
+  const due = waterBreakDue(history, Date.now());
+  return due && due !== lastWaterBreak ? due : null;
+}
+
 /** A prompt on screen. Cards can be passed; samples from locked packs offer an unlock. */
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
 export function Match({ config, firstServer }: { config: MatchConfig; firstServer: Team }) {
-  const { settings, updateSettings, recordGame, deck, lockedCards, access } = useApp();
+  const { settings, updateSettings, recordGame, deck, lockedCards, access, history } = useApp();
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
   const rules = useMemo(() => deck.filter((c) => c.kind === 'rule'), [deck]);
   const [match, setMatch] = useState(() => newMatch(config, firstServer));
   const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
-  const [prompt, setPrompt] = useState<Shown | null>(null);
+  // A match started from the setup screen can open with a water break.
+  const [prompt, setPrompt] = useState<Shown | null>(() => (pendingWaterBreak(history) ? WATER_BREAK : null));
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
 
@@ -73,6 +92,14 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   };
   // Stop talking when leaving the match.
   useEffect(() => hush, []);
+
+  // Announce an opening water break.
+  useEffect(() => {
+    if (prompt !== WATER_BREAK) return;
+    lastWaterBreak = pendingWaterBreak(history) ?? lastWaterBreak;
+    announce(WATER_BREAK, { sound: settings.sound, voice: settings.voice, announcer: settings.announcer });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Score a rally. A moment (net ball, ace…) brings its own prompt; it's shown
@@ -114,7 +141,11 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
     const loser = match.winner === null ? firstServer : other(match.winner);
     setMatch(newMatch(config, loser));
     setHouseRule(drawCard(rules, houseRule ? [houseRule.id] : []));
-    setPrompt(null);
+    const due = pendingWaterBreak(history);
+    if (due) {
+      lastWaterBreak = due;
+      show(WATER_BREAK);
+    } else setPrompt(null);
   };
 
   const subtitle = `${config.format === 'doubles' ? 'Doubles' : 'Singles'} · to ${config.target} · ${

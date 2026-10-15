@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard, packsInSeason } from '../cards';
-import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
+import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents, waterBreakDue } from '../party';
 import { newMatch } from '../scoring';
 import { WILD_ACTS, renderPenalty } from '../spice';
 
@@ -42,8 +42,31 @@ describe('promptForEvents', () => {
     expect(p?.big).toBe(true);
   });
   it('skips most side outs', () => {
-    expect(promptForEvents([{ type: 'sideOut', to: 1 }], state, 'tipsy', () => 0.9)).toBeNull();
-    expect(promptForEvents([{ type: 'sideOut', to: 1 }], state, 'tipsy', () => 0.1)?.body).toContain('Dinkers');
+    expect(promptForEvents([{ type: 'sideOut', to: 1 }], state, 'tipsy', () => 0.2)).toBeNull();
+    expect(promptForEvents([{ type: 'sideOut', to: 1 }], state, 'tipsy', () => 0.05)?.body).toContain('Dinkers');
+  });
+  it('only calls for sips on late ties', () => {
+    expect(promptForEvents([{ type: 'tied', score: 5 }], state, 'tipsy')).toBeNull();
+    expect(promptForEvents([{ type: 'tied', score: 7 }], state, 'tipsy')?.title).toBe('Tied at 7');
+  });
+  it('calls a water break every two games in a session', () => {
+    const min = 60 * 1000;
+    const now = 1_000_000_000;
+    const game = (id: string, ago: number) => ({
+      id,
+      date: now - ago * min,
+      teamNames: ['A', 'B'] as [string, string],
+      scores: [11, 5] as [number, number],
+      winner: 0 as const,
+      pickled: false,
+      rallies: 30,
+    });
+    expect(waterBreakDue([], now)).toBeNull();
+    expect(waterBreakDue([game('1', 1)], now)).toBeNull();
+    expect(waterBreakDue([game('1', 20), game('2', 1)], now)).toBe('2');
+    expect(waterBreakDue([game('1', 40), game('2', 20), game('3', 1)], now)).toBeNull();
+    // Yesterday's game doesn't count toward today's session.
+    expect(waterBreakDue([game('0', 60 * 24), game('1', 1)], now)).toBeNull();
   });
   it('fills moment templates', () => {
     expect(momentPrompt('net', 'Sam', 'tipsy').body).toBe('Sam fed the net. Net tax: Sam, take 1 sip.');
