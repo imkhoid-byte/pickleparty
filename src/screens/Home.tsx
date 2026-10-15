@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { previewAnnouncer } from '../audio/announcer';
@@ -12,6 +12,8 @@ import { autoPaywall, canUsePack } from '../monetization/entitlements';
 import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
+
+const MASCOT = require('../../assets/brand/mascot-512.png');
 
 export function Home() {
   const { settings, updateSettings, history, access } = useApp();
@@ -31,7 +33,7 @@ export function Home() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <Text style={styles.logoEmoji}>🥒</Text>
+        <Image source={MASCOT} style={styles.mascot} accessibilityLabel="PickleParty mascot" />
         <Text style={styles.logo}>PICKLE</Text>
         <Text style={[styles.logo, { color: colors.pink, marginTop: -14 }]}>PARTY</Text>
         <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
@@ -192,7 +194,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', paddingVertical: 16 },
-  logoEmoji: { fontSize: 56, transform: [{ rotate: '-20deg' }] },
+  mascot: { width: 132, height: 132, marginBottom: -6 },
   logo: { color: colors.pickle, fontSize: 60, fontWeight: '900', letterSpacing: 2 },
   tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

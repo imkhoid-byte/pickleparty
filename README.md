@@ -75,7 +75,7 @@ and a test checks that chill mode never mentions alcohol.
 2. `npx eas-cli@latest login`, then `npx eas-cli@latest build --platform ios --profile production`.
 3. `npx eas-cli@latest submit --platform ios`. Bundle id is `app.pickleparty` (change it in `app.json` if it's taken).
 4. **Age rating:** answer *"Frequent/Intense Alcohol, Tobacco, or Drug Use or References"* honestly. Drinking games are typically rated **17+** on iOS. The app already includes an age gate, a responsible-play notice, and an alcohol-free Chill mode.
-5. Replace the placeholder icon/splash in `assets/` with real art (a cartoon pickle holding a paddle would work well), and keep `APP_LINK` in `src/config.ts` pointing at a page that links to the store, so shared results bring people back.
+5. The icon, splash and Android icons are generated from the original mascot in `assets/brand/mascot.svg` (`node scripts/render_mascot.js assets/brand/mascot.png 1024 && python3 scripts/make_icons.py`). Keep `APP_LINK` in `src/config.ts` pointing at a page that links to the store, so shared results bring people back.
 
 ## Monetization
 
