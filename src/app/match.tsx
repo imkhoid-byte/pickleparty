@@ -12,31 +12,10 @@ function parseConfig(raw: string | undefined): MatchConfig | null {
   }
 }
 
-function parsePlayers(raw: string | undefined): [string[], string[]] | undefined {
-  try {
-    const p = JSON.parse(raw ?? '') as [string[], string[]];
-    return Array.isArray(p) && p.length === 2 ? p : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 export default function MatchRoute() {
-  const { config, first, players, session } = useLocalSearchParams<{
-    config?: string;
-    first?: string;
-    players?: string;
-    session?: string;
-  }>();
+  const { config, first } = useLocalSearchParams<{ config?: string; first?: string }>();
   const parsed = parseConfig(config);
-  // A refreshed or shared match link has no live game to resume.
-  if (!parsed) return <Redirect href="/" />;
-  return (
-    <Match
-      config={parsed}
-      firstServer={(first === '1' ? 1 : 0) as Team}
-      players={parsePlayers(players)}
-      sessionId={session}
-    />
-  );
+  // A refreshed or shared match link has no live game to resume; start fresh.
+  if (!parsed) return <Redirect href="/setup" />;
+  return <Match config={parsed} firstServer={(first === '1' ? 1 : 0) as Team} />;
 }

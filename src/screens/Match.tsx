@@ -24,11 +24,9 @@ export function shareText(s: MatchState): string {
   return `${winner} beat ${loser} ${score}${brag}\nScored on PickleParty ${HASHTAG}\n${APP_LINK}`;
 }
 
-function gameRecord(s: MatchState, players?: [string[], string[]], sessionId?: string): GameRecord {
+function gameRecord(s: MatchState): GameRecord {
   const winner = s.winner ?? 0;
   return {
-    players,
-    sessionId,
     id: `${Date.now()}`,
     date: Date.now(),
     teamNames: s.config.teamNames,
@@ -42,27 +40,14 @@ function gameRecord(s: MatchState, players?: [string[], string[]], sessionId?: s
 /** A prompt on screen. Cards can be passed; samples from locked packs offer an unlock. */
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
-export function Match({
-  config,
-  firstServer,
-  players,
-  sessionId,
-}: {
-  config: MatchConfig;
-  firstServer: Team;
-  /** Set when scoring a party game: the result goes back to the party screen. */
-  players?: [string[], string[]];
-  sessionId?: string;
-}) {
-  const { settings, recordGame, deck, lockedCards, access, session } = useApp();
+export function Match({ config, firstServer }: { config: MatchConfig; firstServer: Team }) {
+  const { settings, recordGame, deck, lockedCards, access } = useApp();
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
   const rules = useMemo(() => deck.filter((c) => c.kind === 'rule'), [deck]);
   const [match, setMatch] = useState(() => newMatch(config, firstServer));
-  const [houseRule, setHouseRule] = useState<PartyCard | null>(
-    () => (sessionId && rules.find((c) => c.id === session?.houseRuleId)) || drawCard(rules),
-  );
+  const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
   const [prompt, setPrompt] = useState<Shown | null>(null);
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
@@ -75,12 +60,6 @@ export function Match({
     const { state, events } = rallyWonBy(match, team);
     setMatch(state);
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
-    if (sessionId && state.winner !== null) {
-      // The party screen shows the results reveal for every game.
-      recordGame(gameRecord(state, players, sessionId));
-      back();
-      return;
-    }
     const p = promptForEvents(events, state, spice);
     if (p) setPrompt(p);
     if (state.winner !== null) {
@@ -274,7 +253,7 @@ export function Match({
           <Button
             label={access.isPro ? '📊 Crew stats & rivalries' : '👑 Who owns this rivalry? See Crew Stats'}
             variant="secondary"
-            onPress={() => (access.isPro ? router.push('/stats') : openPaywall('playerStats'))}
+            onPress={() => (access.isPro ? router.push('/stats') : openPaywall('crewStats'))}
           />
           <Button label="Home" variant="ghost" onPress={back} />
         </Takeover>

@@ -5,7 +5,6 @@
 //   - Every new player gets a 14-day "reverse trial" of Pro, no card needed.
 //   - Pro (subscription) unlocks everything; packs can also be bought one by one.
 //   - Free players keep all their games, but only the latest 10 are visible.
-//   - Free parties shuffle teams randomly; Pro rotates fairly (or winners stay).
 
 import { PACKS, PackId } from '../game/cards';
 
@@ -61,9 +60,10 @@ export function visibleHistory<T>(history: T[], access: Access): { shown: T[]; h
 
 export type PaywallReason =
   | 'trialEnded'
-  | 'playerStats'
+  | 'crewStats'
   | 'history'
-  | 'rotation'
+  | 'recap'
+  | 'roundRobin'
   | 'pack'
   | 'customCards'
   | 'upgrade';

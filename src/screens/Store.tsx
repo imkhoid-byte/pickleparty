@@ -58,7 +58,7 @@ export function Store() {
         <Pressable onPress={() => openPaywall('pack')} accessibilityRole="button">
           <Card style={{ borderWidth: 2, borderColor: colors.pink }}>
             <Text style={styles.name}>👑 Every pack with Pro</Text>
-            <Text style={styles.desc}>All packs + new drops, player stats, fair rotation and custom cards.</Text>
+            <Text style={styles.desc}>All packs + new drops, crew stats, round robins and custom cards.</Text>
             <Text style={[styles.desc, { color: colors.pink, fontWeight: '800' }]}>See Pro →</Text>
           </Card>
         </Pressable>
