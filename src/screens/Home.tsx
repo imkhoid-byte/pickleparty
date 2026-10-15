@@ -13,7 +13,7 @@ import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
-const MASCOT = require('../../assets/brand/mascot-512.png');
+const LOGO = require('../../assets/brand/logo-badge-512.png');
 
 export function Home() {
   const { settings, updateSettings, history, access } = useApp();
@@ -33,9 +33,7 @@ export function Home() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <Image source={MASCOT} style={styles.mascot} accessibilityLabel="PickleParty mascot" />
-        <Text style={styles.logo}>PICKLE</Text>
-        <Text style={[styles.logo, { color: colors.pink, marginTop: -14 }]}>PARTY</Text>
+        <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
         <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
       </View>
 
@@ -193,9 +191,8 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: 16 },
-  mascot: { width: 132, height: 132, marginBottom: -6 },
-  logo: { color: colors.pickle, fontSize: 60, fontWeight: '900', letterSpacing: 2 },
+  hero: { alignItems: 'center', paddingVertical: 8 },
+  logo: { width: 250, height: 250 },
   tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   cell: { flexBasis: '46%', flexGrow: 1, paddingVertical: 14 },

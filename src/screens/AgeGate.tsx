@@ -4,7 +4,7 @@ import { useApp } from '../AppState';
 import { Button, Screen } from '../ui/components';
 import { colors } from '../ui/theme';
 
-const MASCOT = require('../../assets/brand/mascot-512.png');
+const LOGO = require('../../assets/brand/logo-badge-512.png');
 
 export function AgeGate() {
   const { settings, updateSettings } = useApp();
@@ -19,8 +19,8 @@ export function AgeGate() {
   return (
     <Screen scroll={false}>
       <View style={styles.wrap}>
-        <Image source={MASCOT} style={styles.mascot} accessibilityLabel="PickleParty mascot" />
-        <Text style={styles.title}>Welcome to{'\n'}PickleParty</Text>
+        <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
+        <Text style={styles.title}>Welcome!</Text>
         <Text style={styles.body}>
           PickleParty has optional drinking-game modes. Are you of legal drinking age (21+) where you live?
         </Text>
@@ -46,7 +46,7 @@ export function AgeGate() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 20 },
-  mascot: { width: 180, height: 180 },
+  logo: { width: 260, height: 260 },
   title: { color: colors.pickle, fontSize: 40, fontWeight: '900', textAlign: 'center' },
   body: { color: colors.text, fontSize: 18, textAlign: 'center', lineHeight: 26 },
   fine: { color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
