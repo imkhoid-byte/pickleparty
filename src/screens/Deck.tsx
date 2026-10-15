@@ -9,7 +9,7 @@ import { CARD_KIND_LABEL, CUSTOM_PACK, Card, CardKind, PACKS, drawWithTeaser } f
 import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
-import { Button, Screen } from '../ui/components';
+import { Button, Chip, Screen } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
 const KIND_STYLE: Record<CardKind, { label: string; color: string }> = {
@@ -17,18 +17,23 @@ const KIND_STYLE: Record<CardKind, { label: string; color: string }> = {
   rule: { label: CARD_KIND_LABEL.rule.toUpperCase(), color: colors.orange },
   trick: { label: CARD_KIND_LABEL.trick.toUpperCase(), color: colors.sky },
   vote: { label: CARD_KIND_LABEL.vote.toUpperCase(), color: colors.pickle },
+  court: { label: CARD_KIND_LABEL.court.toUpperCase(), color: colors.danger },
 };
 
 export function Deck() {
   const { settings, deck, lockedCards, access } = useApp();
   const [drawn, setDrawn] = useState<{ card: Card; text: string; locked: boolean } | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  // Court Rules only: play it like a card deck, keeping score yourselves.
+  const [courtOnly, setCourtOnly] = useState(false);
+  const pool = courtOnly ? deck.filter((c) => c.kind === 'court') : deck;
+  const lockedPool = courtOnly ? lockedCards.filter((c) => c.kind === 'court') : lockedCards;
   const [flip] = useState(() => new Animated.Value(1));
 
   const draw = () => {
-    const next = drawWithTeaser(deck, access.isPro ? [] : lockedCards, recent);
+    const next = drawWithTeaser(pool, access.isPro ? [] : lockedPool, recent);
     if (!next) return;
-    setRecent((r) => [next.card.id, ...r].slice(0, Math.floor(deck.length / 2)));
+    setRecent((r) => [next.card.id, ...r].slice(0, Math.floor(pool.length / 2)));
     flip.setValue(0);
     const text = renderPenalty(next.card.text, settings.spice);
     setDrawn({ card: next.card, text, locked: next.locked });
@@ -52,6 +57,16 @@ export function Deck() {
 
   return (
     <Screen title="Party Deck" onBack={goBack}>
+      <View style={styles.modes}>
+        <Chip label="🃏 All cards" selected={!courtOnly} onPress={() => setCourtOnly(false)} />
+        <Chip label="🌀 Court Rules only" selected={courtOnly} color={colors.danger} onPress={() => setCourtOnly(true)} />
+      </View>
+      {courtOnly && (
+        <Text style={styles.muted}>
+          No scorekeeping needed: deal a new Court Rule every 3 points. Break the rule and the other team wins the
+          rally.
+        </Text>
+      )}
       <Animated.View
         style={[
           styles.card,
@@ -93,7 +108,9 @@ export function Deck() {
         />
       )}
       <View style={styles.footer}>
-        <Text style={styles.muted}>{deck.length} cards in your deck</Text>
+        <Text style={styles.muted}>
+          {pool.length} {courtOnly ? 'Court Rules' : 'cards'} in your deck
+        </Text>
         <Text style={styles.link} onPress={() => router.push('/packs')}>
           {access.isPro ? 'Choose packs →' : 'Get more packs →'}
         </Text>
@@ -118,6 +135,7 @@ const styles = StyleSheet.create({
   text: { color: colors.text, fontSize: 26, fontWeight: '800', textAlign: 'center', lineHeight: 34 },
   pack: { color: colors.muted, fontSize: 14, fontWeight: '700' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  modes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   muted: { color: colors.muted, fontSize: 14 },
   link: { color: colors.sky, fontSize: 14, fontWeight: '700' },
 });

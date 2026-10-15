@@ -244,3 +244,28 @@ export function spinLosersWheel(
   const options = LOSERS_WHEEL.map((t) => fill(t, { loser, winner }, spice, rng));
   return { options, landed: Math.floor(rng() * options.length) };
 }
+
+// --- Chaos Rules ----------------------------------------------------------------
+// A Court Rule changes how play works for everyone. With Chaos Rules on, a new one
+// is drawn every few points; whoever breaks it loses the rally.
+
+export const CHAOS_EVERY = 3;
+
+const pointsPlayed = (s: MatchState) => s.scores[0] + s.scores[1];
+
+/** True when the rally just scored should bring in a new Court Rule. */
+export function courtRuleDue(before: MatchState, after: MatchState): boolean {
+  const points = pointsPlayed(after);
+  return after.winner === null && points > pointsPlayed(before) && points % CHAOS_EVERY === 0;
+}
+
+/** Points left before the next Court Rule. */
+export const pointsUntilNextRule = (s: MatchState) => CHAOS_EVERY - (pointsPlayed(s) % CHAOS_EVERY);
+
+export function courtRulePrompt(text: string, spice: Spice): PartyPrompt {
+  return { emoji: '🌀', title: 'New Court Rule', body: renderPenalty(text, spice), sound: 'whoosh' };
+}
+
+export function ruleBrokenPrompt(who: string, them: string): PartyPrompt {
+  return { emoji: '🚫', title: 'Rule Broken', body: `${who} broke the Court Rule. ${them} win the rally.`, sound: 'honk' };
+}

@@ -24,6 +24,8 @@ export interface Settings {
   sunlight: boolean;
   /** Calm mode: only the big moments interrupt the game. */
   calm: boolean;
+  /** Chaos Rules: a new Court Rule every few points. */
+  chaos: boolean;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   voice: true,
   sunlight: false,
   calm: false,
+  chaos: false,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,

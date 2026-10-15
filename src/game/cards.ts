@@ -1,7 +1,20 @@
 // Card decks. Text may use {sips:N} and {finish}; see spice.ts.
 
-export type PackId = 'classic' | 'kitchen' | 'trickshots' | 'afterdark' | 'datenight' | 'halloween' | 'custom';
-export type CardKind = 'dare' | 'rule' | 'trick' | 'vote';
+export type PackId =
+  | 'classic'
+  | 'kitchen'
+  | 'trickshots'
+  | 'afterdark'
+  | 'chaos'
+  | 'datenight'
+  | 'halloween'
+  | 'custom';
+/**
+ * dare/trick: one team. rule: a house rule for the whole game. vote: the group.
+ * court: changes how play works for everyone until the next one is drawn
+ * (Chaos Rules: a new one every few points; break it and you lose the rally).
+ */
+export type CardKind = 'dare' | 'rule' | 'trick' | 'vote' | 'court';
 
 /** Shown above (and read before) the card text, so card texts don't repeat it. */
 export const CARD_KIND_LABEL: Record<CardKind, string> = {
@@ -9,6 +22,7 @@ export const CARD_KIND_LABEL: Record<CardKind, string> = {
   rule: 'House Rule',
   trick: 'Trick Shot',
   vote: 'Group Vote',
+  court: 'Court Rule',
 };
 
 export interface Card {
@@ -37,6 +51,14 @@ export const PACKS: Pack[] = [
   { id: 'kitchen', name: 'Kitchen Nightmares', emoji: '🔥', description: 'Spicier dares and chaotic house rules.', premium: true, price: '$2.99' },
   { id: 'trickshots', name: 'Trick Shot Tour', emoji: '🎯', description: 'Behind-the-back, ernes, ATPs. Film everything.', premium: true, price: '$2.99' },
   { id: 'afterdark', name: 'After Dark', emoji: '🌙', description: 'For the 4th game when nobody is keeping score.', premium: true, price: '$2.99' },
+  {
+    id: 'chaos',
+    name: 'Chaos Rules',
+    emoji: '🌀',
+    description: 'Court Rules that change how every rally is played. Robot mode, slow motion, opera voices.',
+    premium: true,
+    price: '$2.99',
+  },
   {
     id: 'halloween',
     name: 'Halloween Bash',
@@ -93,6 +115,25 @@ export const CARDS: Card[] = [
     'Who would win in a 1v1? Everyone else {sips:1}.',
     'Most likely to blame their paddle. They {sips:1}.',
   ]),
+  // Court Rules: "Name: what everyone has to do." They're all original.
+  ...c('classic', 'court', [
+    'Paddles Down: no paddles. Everyone hits with an open hand.',
+    'Hand in Hand: partners hold hands the whole rally.',
+    'Steady Hands: everyone plays holding their drink in their free hand. Spill a drop and you lose the rally.',
+    'Kitchen Is Lava: one toe in the kitchen and you lose the rally.',
+    'Silent Rally: not a sound. The first person to talk, laugh or grunt loses the rally for their team.',
+    'Off-Hand Only: everyone plays with their non-dominant hand.',
+    'Chicken Wing: tuck your free hand in your armpit and flap it after every shot.',
+    'Spin Cycle: spin all the way around after every shot you hit.',
+    'Dinks Only: no drives and no lobs. Every shot has to be soft.',
+    'Hum Along: each team hums a song the whole rally. Whoever stops humming loses it.',
+    'One-Knee Serve: serves are hit from one knee.',
+    'Call Your Shot: say "dink", "drive" or "lob" before every hit, then hit exactly that.',
+    'Statue: one player on each team can\'t move their feet. Partners pick who.',
+    'Be Nice: compliment an opponent before every serve. Forget and the serve is a fault.',
+    'Low Rider: everyone plays crouched with bent knees. Stand up straight and you lose the rally.',
+    'Bounce It: every ball has to bounce before you hit it. No volleys anywhere.',
+  ]),
   ...c('kitchen', 'dare', [
     'You must stand in the kitchen for the entire next rally. Every volley: {sips:1}.',
     'Your opponents choose your next shot: drive, drop or lob. Disobey and {sips:2}.',
@@ -142,6 +183,42 @@ export const CARDS: Card[] = [
     'Next point you win, celebrate with a kiss from your partner. Forget and {sips:2}.',
     'Losing partner carries both paddles and water bottles like a butler until the next game.',
   ]),
+  ...c('chaos', 'court', [
+    'Paddle Swap: everyone swaps paddles with the opponent across the net.',
+    'The Butler: free hand behind your back like a fancy waiter.',
+    'Play-by-Play: the server narrates every shot out loud like a TV commentator.',
+    'Slow Motion: everyone moves in slow motion between shots. Rushing loses the rally.',
+    'Opera Night: every word spoken during a rally must be sung.',
+    'Tiny Steps: shuffle steps only. No running.',
+    'Two-Hander: everyone holds the paddle with both hands.',
+    'Switch Hitter: swap paddle hands after every shot you hit.',
+    'Lob Lockdown: no lobs. A lob loses the rally.',
+    'Robot Mode: move and talk like a robot. Break character and you lose the rally.',
+    "Name Caller: shout your partner's name before every shot.",
+    'Strike a Pose: freeze in a superhero pose for a second after every shot you hit.',
+    'Whisper Score: the score must be whispered. A normal voice is a fault.',
+    'Air Guitar: the team that wins a rally shreds 3 seconds of air guitar before the next serve.',
+    'Off-Hand Serve: serves are hit with your non-dominant hand.',
+    'Moonwalker: moonwalk back to the baseline after every point.',
+    'Three Dinks First: each rally needs 3 dinks before anyone can attack.',
+    'Drop It: the third shot has to be a drop. Drive it and you lose the rally.',
+    "Stick Together: partners stay within a paddle's reach of each other.",
+    'Sing the Score: the server sings the score before serving.',
+    'Tongue Out: everyone plays with their tongue out.',
+    'Very British: everyone speaks in a posh British accent. Big Dill approves.',
+    'High-Five Club: partners high-five after every shot either of them hits.',
+    'Point First: point to where you are going to hit before every shot.',
+    'Heel Toe: walk heel-to-toe between points like you are on a tightrope.',
+    'Hat Swap: everyone swaps hats or sunglasses with their opponent.',
+    'No Backhands: forehands only. A backhand loses the rally.',
+    'Victory Roar: roar like a lion every time your team wins a rally.',
+  ]),
+  ...c('datenight', 'court', [
+    'Smooch to Serve: the server kisses their partner before every serve.',
+    'Hip to Hip: partners stay hip to hip the whole rally.',
+    'Pet Names: call your partner a pet name before every shot.',
+    'Winner\'s Kiss: the team that wins each rally shares a kiss before the next serve.',
+  ]),
   ...c('datenight', 'vote', [
     'Cutest couple on court. Everyone else {sips:1}.',
     'Which couple would survive a mixed-doubles tournament together? The other pair must {sips:2}.',
@@ -171,6 +248,11 @@ export const CARDS: Card[] = [
   ...c('halloween', 'trick', [
     'The Headless Rider: hit one with your hat pulled over your eyes. Land it and the other team must {sips:2}.',
     'Pumpkin drop: a soft one that dies in the kitchen. Nail it and the other team must {sips:2}.',
+  ]),
+  ...c('halloween', 'court', [
+    'Zombie Shuffle: no running. Zombies only shuffle.',
+    "Witch's Cackle: cackle after every shot you hit.",
+    'Count Dinkula: free hand holds your collar up over your face like a cape.',
   ]),
   ...c('halloween', 'vote', [
     'Best costume on court. Everyone else {sips:1}.',

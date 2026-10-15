@@ -2,8 +2,20 @@ import { describe, expect, it } from '@jest/globals';
 import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard, packsInSeason } from '../cards';
-import { LOSERS_WHEEL, MOMENTS, momentPrompt, momentRallyWinner, promptForEvents, spinLosersWheel, waterBreakDue } from '../party';
-import { newMatch } from '../scoring';
+import {
+  CHAOS_EVERY,
+  LOSERS_WHEEL,
+  MOMENTS,
+  courtRuleDue,
+  momentPrompt,
+  momentRallyWinner,
+  pointsUntilNextRule,
+  promptForEvents,
+  ruleBrokenPrompt,
+  spinLosersWheel,
+  waterBreakDue,
+} from '../party';
+import { newMatch, rallyWonBy } from '../scoring';
 import { WILD_ACTS, renderPenalty } from '../spice';
 
 const state = newMatch({ format: 'doubles', scoring: 'sideout', target: 11, teamNames: ['Dinkers', 'Bangers'] });
@@ -86,6 +98,38 @@ describe('calm mode', () => {
     expect(
       promptForEvents([{ type: 'gameOver', winner: 0, pickled: true }], state, 'tipsy', () => 0, calm)?.title,
     ).toBe('PICKLED!');
+  });
+});
+
+describe('Chaos Rules', () => {
+  const court = CARDS.filter((c) => c.kind === 'court');
+  it('has a free starter set and a premium pack', () => {
+    expect(court.filter((c) => c.pack === 'classic').length).toBeGreaterThanOrEqual(15);
+    expect(court.filter((c) => c.pack === 'chaos').length).toBeGreaterThanOrEqual(25);
+    expect(PACKS.find((p) => p.id === 'chaos')?.premium).toBe(true);
+  });
+  it('gives every Court Rule a name, then what to do', () => {
+    for (const c of court) expect(c.text).toMatch(/^[A-Z][^:]{2,24}: [a-zA-Z"]/);
+  });
+  it('draws a new rule every few points, not on side-outs or at game end', () => {
+    let s = newMatch({ format: 'doubles', scoring: 'rally', target: 11, teamNames: ['A', 'B'] });
+    const due: number[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const { state } = rallyWonBy(s, 0);
+      if (courtRuleDue(s, state)) due.push(i);
+      s = state;
+    }
+    expect(due).toEqual([CHAOS_EVERY, CHAOS_EVERY * 2, CHAOS_EVERY * 3]);
+    expect(pointsUntilNextRule(s)).toBe(CHAOS_EVERY - (10 % CHAOS_EVERY));
+    const end = rallyWonBy(s, 0).state;
+    expect(end.winner).toBe(0);
+    expect(courtRuleDue(s, end)).toBe(false);
+    // A side-out scores nothing, so it never brings a new rule.
+    const so = newMatch({ format: 'doubles', scoring: 'sideout', target: 11, teamNames: ['A', 'B'] });
+    expect(courtRuleDue(so, rallyWonBy(so, 1).state)).toBe(false);
+  });
+  it('gives the rally to the other team when a rule is broken', () => {
+    expect(ruleBrokenPrompt('Bangers', 'Dinkers').body).toBe('Bangers broke the Court Rule. Dinkers win the rally.');
   });
 });
 
@@ -298,7 +342,7 @@ describe('Halloween Bash pack', () => {
     expect(packsInSeason(9).map((p) => p.id)).toContain('halloween');
     expect(packsInSeason(3).map((p) => p.id)).not.toContain('halloween');
     expect(cards.length).toBeGreaterThanOrEqual(20);
-    expect(new Set(cards.map((c) => c.kind))).toEqual(new Set(['dare', 'rule', 'trick', 'vote']));
+    expect(new Set(cards.map((c) => c.kind))).toEqual(new Set(['dare', 'rule', 'trick', 'vote', 'court']));
   });
   it('stays alcohol-free in chill mode', () => {
     for (const c of cards) expect(renderPenalty(c.text, 'chill', () => 0)).not.toMatch(/\bsips?\b|gulp/);

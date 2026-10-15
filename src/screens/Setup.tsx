@@ -139,6 +139,22 @@ export function Setup() {
           : 'Side-outs, hot streaks and ties all get called out. Best with a Hype Man on the phone.'}
       </Text>
 
+      <Label>Chaos Rules</Label>
+      <View style={styles.row}>
+        <Chip label="Off" selected={!settings.chaos} onPress={() => updateSettings({ chaos: false })} />
+        <Chip
+          label="🌀 New rule every 3 points"
+          selected={settings.chaos}
+          color={colors.danger}
+          onPress={() => updateSettings({ chaos: true })}
+        />
+      </View>
+      <Text style={styles.hint}>
+        {settings.chaos
+          ? 'Court Rules change how everyone plays: hands only, hold hands, silent rallies… Break the rule and the other team wins the rally. Tap 🚫 Rule broken to call it.'
+          : 'Turn it on for Court Rules that change how everyone plays, like hands-only rallies or partners holding hands.'}
+      </Text>
+
       <Label>First serve</Label>
       <View style={styles.row}>
         {([0, 1] as Team[]).map((t) => (

@@ -12,6 +12,10 @@ import { CARD_KIND_LABEL, Card as PartyCard, PACKS, addressCard, drawCard, drawW
 import {
   MOMENTS,
   MomentId,
+  courtRuleDue,
+  courtRulePrompt,
+  pointsUntilNextRule,
+  ruleBrokenPrompt,
   PartyPrompt,
   WATER_BREAK,
   momentPrompt,
@@ -99,6 +103,12 @@ export function Match({
   const rules = useMemo(() => deck.filter((c) => c.kind === 'rule'), [deck]);
   const [match, setMatch] = useState(() => newMatch(config, firstServer));
   const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
+
+  // Chaos Rules: a Court Rule (instead of the house rule) that changes every few points.
+  const chaos = settings.chaos;
+  const courtRules = useMemo(() => deck.filter((c) => c.kind === 'court'), [deck]);
+  const [courtRule, setCourtRule] = useState<PartyCard | null>(() => (chaos ? drawCard(courtRules) : null));
+  const [pendingBreak, setPendingBreak] = useState(false);
   // A match started from the setup screen can open with a water break.
   const [prompt, setPrompt] = useState<Shown | null>(() => (pendingWaterBreak(history) ? WATER_BREAK : null));
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
@@ -118,6 +128,8 @@ export function Match({
   const spice = settings.spice;
   // Rendered once per rule so random penalties (exercises, Wild acts) don't change on every rally.
   const houseRuleText = useMemo(() => (houseRule ? renderPenalty(houseRule.text, spice) : ''), [houseRule, spice]);
+  const courtRuleText = useMemo(() => (courtRule ? renderPenalty(courtRule.text, spice) : ''), [courtRule, spice]);
+  const newCourtRule = () => drawCard(courtRules, courtRule ? [courtRule.id] : []);
   const names = config.teamNames;
   const audioOn = settings.sound || settings.voice;
 
@@ -159,7 +171,14 @@ export function Match({
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
     setLastLoser(other(team));
     const p = promptForEvents(events, state, spice, Math.random, { calm: settings.calm });
-    const next = p?.big ? p : (moment ?? p);
+    // A new Court Rule changes how the next rally is played, so it outranks the everyday prompts.
+    let rulePrompt: PartyPrompt | null = null;
+    if (chaos && courtRuleDue(match, state)) {
+      const rule = newCourtRule();
+      setCourtRule(rule);
+      if (rule) rulePrompt = courtRulePrompt(rule.text, spice);
+    }
+    const next = p?.big ? p : (moment ?? rulePrompt ?? p);
     if (next) show(next);
     // Play has moved on: an old banner would now be out of date.
     else if (prompt && isBanner(prompt)) setPrompt(null);
@@ -171,7 +190,12 @@ export function Match({
   };
 
   const onDraw = () => {
-    const drawn = drawWithTeaser(deck, access.isPro ? [] : lockedCards, recent);
+    // Court Rules come round on their own with Chaos Rules; the button draws the rest.
+    const drawn = drawWithTeaser(
+      deck.filter((c) => c.kind !== 'court'),
+      access.isPro ? [] : lockedCards.filter((c) => c.kind !== 'court'),
+      recent,
+    );
     if (!drawn) return;
     const { card, locked } = drawn;
     setRecent((r) => [card.id, ...r].slice(0, 12));
@@ -212,7 +236,8 @@ export function Match({
 
   // Capture the result card once the game-over screen is up.
   const imageKey = `${match.scores.join('-')}-${match.rallies}`;
-  const gameOverShown = focused && match.winner !== null && prompt === null && pendingMoment === null && wheel === null;
+  const gameOverShown =
+    focused && match.winner !== null && prompt === null && pendingMoment === null && !pendingBreak && wheel === null;
   useEffect(() => {
     if (!gameOverShown || resultImage?.key === imageKey) return;
     const timer = setTimeout(() => {
@@ -229,6 +254,7 @@ export function Match({
     const loser = match.winner === null ? firstServer : other(match.winner);
     setMatch(newMatch(config, loser));
     setHouseRule(drawCard(rules, houseRule ? [houseRule.id] : []));
+    if (chaos) setCourtRule(newCourtRule());
     const due = pendingWaterBreak(history);
     if (due) {
       lastWaterBreak = due;
@@ -280,7 +306,21 @@ export function Match({
       </View>
 
       <View>
-      {houseRule && (
+      {chaos && courtRule ? (
+        <Pressable
+          style={[styles.rule, styles.courtRule, sun && styles.sunSurface]}
+          onPress={() => setCourtRule(newCourtRule())}
+          accessibilityHint="Draw a different Court Rule"
+        >
+          <Text style={[styles.ruleText, sun && styles.sunRuleText]} numberOfLines={3}>
+            🌀 <Text style={styles.courtLabel}>Court Rule: </Text>
+            {courtRuleText}
+          </Text>
+          <Text style={[styles.ruleHint, sun && styles.sunMuted]}>
+            new rule in {pointsUntilNextRule(match)} point{pointsUntilNextRule(match) === 1 ? '' : 's'} · tap to skip
+          </Text>
+        </Pressable>
+      ) : houseRule && (
         <Pressable
           style={[styles.rule, sun && styles.sunSurface]}
           onPress={() => setHouseRule(drawCard(rules, [houseRule.id]))}
@@ -355,6 +395,20 @@ export function Match({
         style={{ flexGrow: 0 }}
         contentContainerStyle={styles.moments}
       >
+        {chaos && courtRule && (
+          <Pressable
+            onPress={() => {
+              if (match.winner !== null) return;
+              tap(settings.haptics);
+              setPendingBreak(true);
+            }}
+            style={[styles.moment, styles.breakMoment, sun && styles.sunSurface]}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 22 }}>🚫</Text>
+            <Text style={[styles.momentText, sun && styles.sunMomentText]}>Rule broken</Text>
+          </Pressable>
+        )}
         {MOMENTS.map((m) => (
           <Pressable
             key={m.id}
@@ -377,7 +431,22 @@ export function Match({
       </View>
 
       {/* One modal for everything: iOS can't present a second modal while another is closing. */}
-      {!focused ? null : pendingMoment !== null ? (
+      {!focused ? null : pendingBreak ? (
+        <Takeover visible emoji="🚫" title="Who broke the rule?" accent={colors.danger} onClose={() => setPendingBreak(false)}>
+          {([0, 1] as Team[]).map((t) => (
+            <Button
+              key={t}
+              label={names[t]}
+              variant={t === 0 ? 'primary' : 'pink'}
+              onPress={() => {
+                // Breaking the Court Rule hands the rally to the other team.
+                onRally(other(t), ruleBrokenPrompt(names[t], names[other(t)]));
+                setPendingBreak(false);
+              }}
+            />
+          ))}
+        </Takeover>
+      ) : pendingMoment !== null ? (
         <Takeover
           visible
           emoji={MOMENTS.find((m) => m.id === pendingMoment)?.emoji ?? '❓'}
@@ -498,6 +567,9 @@ const styles = StyleSheet.create({
   },
   ruleText: { color: colors.text, fontSize: 14, fontWeight: '600' },
   ruleLabel: { color: colors.orange, fontWeight: '900' },
+  courtRule: { borderLeftColor: colors.danger },
+  courtLabel: { color: colors.danger, fontWeight: '900' },
+  breakMoment: { borderWidth: 2, borderColor: colors.danger },
   ruleHint: { color: colors.muted, fontSize: 11, marginTop: 4, textAlign: 'right' },
   call: {
     color: colors.text,

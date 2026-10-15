@@ -119,7 +119,7 @@ That shows whether people actually want Pro before you pay Apple $99.
    - add the app and import those products
    - create an entitlement named **`pro`** and attach both subscriptions and the lifetime product
    - make the default offering with **Monthly**, **Annual** and **Lifetime** packages
-   - make a second offering called **`packs`** with one package per pack, named exactly `kitchen`, `trickshots`, `afterdark`, `halloween`, `datenight`
+   - make a second offering called **`packs`** with one package per pack, named exactly `kitchen`, `trickshots`, `afterdark`, `chaos`, `halloween`, `datenight`
 3. Put the RevenueCat public keys in EAS (and Netlify, for web payments through Stripe) as environment variables:
    `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `EXPO_PUBLIC_REVENUECAT_WEB_KEY`.
 4. Build with `npx eas-cli@latest build --profile preview` and test with a Sandbox account. Purchases don't work in Expo Go; there, RevenueCat runs in a preview mode.
