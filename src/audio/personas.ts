@@ -15,6 +15,8 @@ export interface Announcer {
   rate: number;
   /** Use a male voice when the phone has one. */
   male?: boolean;
+  /** Preferred accent for that voice, e.g. 'en-GB'. */
+  accent?: string;
   /** Pitch to use instead when no male voice is installed (deepens the default voice). */
   fallbackPitch?: number;
 }
@@ -25,10 +27,11 @@ export const ANNOUNCERS: Announcer[] = [
     id: 'bigdill',
     label: 'Big Dill',
     emoji: '🥒',
-    blurb: 'Deep, dramatic movie-trailer voice.',
+    blurb: 'A terribly posh British gentleman, far too polite about your terrible shots.',
     pitch: 0.65,
     rate: 0.85,
     male: true,
+    accent: 'en-GB',
     fallbackPitch: 0.55,
   },
   { id: 'classic', label: 'Classic', emoji: '📢', blurb: 'Just the facts.', pitch: 1, rate: 1 },
@@ -57,10 +60,15 @@ const INTROS: Record<Exclude<AnnouncerId, 'classic'>, Record<Mood, string[]>> = 
     neutral: ['Hiii!', 'Guess what, guess what!'],
   },
   bigdill: {
-    hype: ['Legends will speak of this day.', 'Behold.'],
-    shame: ['And so... it ends in shame.', 'A dark day... for the brine.'],
-    drama: ['In a world... where one team stood alone...', 'One point... could change everything.'],
-    neutral: ['Listen closely.', 'It is written.'],
+    hype: ['I say! Splendid!', 'Jolly good show!', 'Oh, magnificent. Simply magnificent.', 'Bravo, old sport!'],
+    shame: [
+      'Oh dear. Oh dear, oh dear.',
+      'How dreadfully unfortunate.',
+      'Rather embarrassing, old chap.',
+      'We shan’t speak of this again.',
+    ],
+    drama: ['Steady on, everyone.', 'Do keep calm and carry on.', 'The tension is positively unbearable.'],
+    neutral: ['Ahem. If I may.', 'Right then.', 'Pip pip.'],
   },
 };
 
@@ -127,8 +135,9 @@ const ANDROID_MALE = /-x-(iob|iol|iom|tpd|gbb|gbd|rjs)-/i;
 
 const words = (s: string) => s.toLowerCase().split(/[^a-z]+/).filter(Boolean);
 
-/** The best male English voice on this device, or null if there isn't one. */
-export function pickMaleVoice(voices: VoiceInfo[]): string | null {
+/** The best male English voice on this device (preferring `accent`), or null if there isn't one. */
+export function pickMaleVoice(voices: VoiceInfo[], accent = 'en-US'): string | null {
+  const preferred = new RegExp(`^${accent.replace('-', '[-_]')}`, 'i');
   let best: { id: string; score: number } | null = null;
   for (const v of voices) {
     if (!/^en/i.test(v.language)) continue;
@@ -137,14 +146,14 @@ export function pickMaleVoice(voices: VoiceInfo[]): string | null {
     const male = w.some((x) => MALE_NAMES.has(x)) || ANDROID_MALE.test(v.identifier);
     if (!male) continue;
     const score =
-      (/^en[-_]us/i.test(v.language) ? 3 : 1) +
+      (preferred.test(v.language) ? 3 : 1) +
       (v.quality === 'Enhanced' || /enhanced|premium|neural|natural/i.test(v.name + v.identifier) ? 2 : 0);
     if (!best || score > best.score) best = { id: v.identifier, score };
   }
   return best?.id ?? null;
 }
 
-/** Voice, pitch and speed for an announcer, given the male voice found (if any). */
+/** Voice, pitch and speed for an announcer, given the male voice found for it (if any). */
 export function voiceSettings(
   a: Announcer,
   maleVoice: string | null,

@@ -85,7 +85,7 @@ export function Home() {
               color={colors.sky}
               onPress={() => {
                 updateSettings({ announcer: a.id });
-                previewAnnouncer(a.id, settings.sound);
+                previewAnnouncer(a.id);
               }}
             />
           ))}

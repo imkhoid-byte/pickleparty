@@ -2,10 +2,11 @@
 // hear who has to do what without walking over to the phone.
 
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 
 import type { PartyPrompt, SoundId } from '../game/party';
-import { AnnouncerId, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from './personas';
+import { AnnouncerId, VoiceInfo, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from './personas';
 
 const SOURCES: Record<SoundId, number> = {
   airhorn: require('../../assets/sounds/airhorn.wav'),
@@ -38,6 +39,15 @@ const players = new Map<SoundId, AudioPlayer>();
 let audioModeSet = false;
 let pendingVoice: ReturnType<typeof setTimeout> | null = null;
 
+function playerFor(id: SoundId): AudioPlayer {
+  let player = players.get(id);
+  if (!player) {
+    player = createAudioPlayer(SOURCES[id]);
+    players.set(id, player);
+  }
+  return player;
+}
+
 export function playSound(id: SoundId) {
   try {
     if (!audioModeSet) {
@@ -45,11 +55,8 @@ export function playSound(id: SoundId) {
       // The party is the point: play even with the ringer switch off, and duck the music.
       setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers' }).catch(() => {});
     }
-    let player = players.get(id);
-    if (!player) {
-      player = createAudioPlayer(SOURCES[id]);
-      players.set(id, player);
-    }
+    const player = playerFor(id);
+    player.muted = false;
     player.seekTo(0).catch(() => {});
     player.play();
   } catch {
@@ -57,24 +64,67 @@ export function playSound(id: SoundId) {
   }
 }
 
-/** The phone's best male voice: undefined until looked up, null if there isn't one. */
-let maleVoice: string | null | undefined;
+/** The phone's voices: undefined until looked up. */
+let voices: VoiceInfo[] | undefined;
 
 async function findVoices() {
   try {
-    const voices = await Speech.getAvailableVoicesAsync();
+    const found = await Speech.getAvailableVoicesAsync();
     // Browsers can report an empty list until their voices finish loading; try again later.
-    if (voices.length > 0) maleVoice = pickMaleVoice(voices);
+    if (found.length > 0) voices = found;
   } catch {
-    maleVoice = null;
+    voices = [];
   }
 }
 findVoices();
 
+function settingsFor(id: AnnouncerId) {
+  const a = announcerFor(id);
+  if (voices === undefined) findVoices();
+  const male = a.male && voices ? pickMaleVoice(voices, a.accent) : null;
+  return voiceSettings(a, male);
+}
+
+let speaking = false;
+
 export function speak(text: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
   try {
-    Speech.stop();
-    Speech.speak(text, voice);
+    // Safari can drop an utterance that starts right after a cancel, so only cancel when needed.
+    if (speaking) Speech.stop();
+    speaking = true;
+    const done = () => {
+      speaking = false;
+    };
+    Speech.speak(text, { ...voice, onDone: done, onStopped: done, onError: done });
+  } catch {
+    speaking = false;
+  }
+}
+
+let unlocked = false;
+
+/**
+ * iPhone browsers only let a page speak or play sound after it has done so
+ * during a tap. Call this on the first tap so later announcements (which start
+ * on a timer, after the sound effect) are allowed. Native apps don't need it.
+ */
+export function unlockAudio() {
+  if (unlocked || Platform.OS !== 'web') return;
+  unlocked = true;
+  try {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (synth) {
+      const silent = new SpeechSynthesisUtterance(' ');
+      silent.volume = 0;
+      synth.speak(silent);
+    }
+    // Start and stop each sound silently so it may play later.
+    (Object.keys(SOURCES) as SoundId[]).forEach((id) => {
+      const player = playerFor(id);
+      player.muted = true;
+      player.play();
+      player.pause();
+    });
   } catch {
     // ignore
   }
@@ -101,18 +151,20 @@ export function announce(
   if (!opts.voice) return;
   const id = announcerFor(opts.announcer ?? '').id;
   const { text } = announcerScript(prompt, id);
-  if (maleVoice === undefined) findVoices();
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {
     pendingVoice = null;
-    speak(text, voiceSettings(announcerFor(id), maleVoice ?? null));
+    speak(text, settingsFor(id));
   }, delay);
 }
 
-/** Let players hear an announcer before picking it. */
-export function previewAnnouncer(id: AnnouncerId, sound: boolean) {
-  announce(
-    { emoji: '🥒', title: 'Brine time', body: "Let's dink, pickle people!", sound: 'kazoo' },
-    { sound, voice: true, announcer: id },
-  );
+/**
+ * Let players hear an announcer before picking it. Speaks immediately, inside
+ * the tap, so it works even before anything else has played (iPhone browsers).
+ */
+export function previewAnnouncer(id: AnnouncerId) {
+  unlockAudio();
+  hush();
+  const { text } = announcerScript({ title: 'Brine time', body: "Let's dink, pickle people!", sound: 'kazoo' }, id);
+  speak(text, settingsFor(id));
 }

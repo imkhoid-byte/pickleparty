@@ -171,6 +171,16 @@ describe('announcer voices', () => {
     ).toBe('Google UK English Male');
     expect(pickMaleVoice([v('Microsoft Zira', 'zira'), v('Thomas', 'fr', 'fr-FR')])).toBeNull();
   });
+  it('Big Dill prefers a British male voice', () => {
+    const list = [
+      v('Aaron', 'com.apple.voice.compact.en-US.Aaron'),
+      v('Daniel', 'com.apple.voice.compact.en-GB.Daniel', 'en-GB'),
+      v('Samantha', 'com.apple.voice.compact.en-US.Samantha'),
+    ];
+    expect(pickMaleVoice(list, 'en-GB')).toBe('com.apple.voice.compact.en-GB.Daniel');
+    expect(pickMaleVoice(list)).toBe('com.apple.voice.compact.en-US.Aaron');
+    expect(ANNOUNCERS.find((a) => a.id === 'bigdill')?.accent).toBe('en-GB');
+  });
   it('Big Dill uses a male voice, or deepens the default voice when there is none', () => {
     const dill = ANNOUNCERS.find((a) => a.id === 'bigdill')!;
     expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.85 });
