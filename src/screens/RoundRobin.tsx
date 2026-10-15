@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
     flex: 1,
+    minWidth: 0,
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
