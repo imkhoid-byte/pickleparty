@@ -22,6 +22,8 @@ export interface Settings {
   voice: boolean;
   /** High-contrast match screen for playing outdoors. */
   sunlight: boolean;
+  /** Calm mode: only the big moments interrupt the game. */
+  calm: boolean;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -55,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   voice: true,
   sunlight: false,
+  calm: false,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,

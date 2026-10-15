@@ -64,7 +64,7 @@ const randomName = (exclude: string, style: NameStyle = 'teams') => {
 };
 
 export function Setup() {
-  const { settings, deck } = useApp();
+  const { settings, updateSettings, deck } = useApp();
   const couples = settings.spice === 'wild';
   // Couples mode wins; otherwise go spooky when the Halloween pack is in play.
   const style: NameStyle = couples ? 'couples' : deck.some((c) => c.pack === 'halloween') ? 'spooky' : 'teams';
@@ -127,6 +127,17 @@ export function Setup() {
         ))}
       </View>
       <Text style={styles.hint}>Win by 2. Shut out the other team to PICKLE them. 🥒</Text>
+
+      <Label>Party pace</Label>
+      <View style={styles.row}>
+        <Chip label="🎉 Full party" selected={!settings.calm} onPress={() => updateSettings({ calm: false })} />
+        <Chip label="😌 Calm" selected={settings.calm} onPress={() => updateSettings({ calm: true })} />
+      </View>
+      <Text style={styles.hint}>
+        {settings.calm
+          ? 'Only the big moments interrupt: Pickle Watch, game point and the win. Best when nobody is near the phone.'
+          : 'Side-outs, hot streaks and ties all get called out. Best with a Hype Man on the phone.'}
+      </Text>
 
       <Label>First serve</Label>
       <View style={styles.row}>

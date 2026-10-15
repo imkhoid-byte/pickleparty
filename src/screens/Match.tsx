@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { router, useIsFocused } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '../AppState';
-import { announce, hush } from '../audio/announcer';
+import { announce, hush, playSound } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
 import { CARD_KIND_LABEL, Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
 import {
@@ -16,16 +17,19 @@ import {
   momentPrompt,
   momentRallyWinner,
   promptForEvents,
+  spinLosersWheel,
   waterBreakDue,
-  winsTitle,
 } from '../game/party';
 import type { RRLink } from '../game/roundRobin';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
+import { shareImage } from '../shareImage';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
+import { LosersWheel } from '../ui/LosersWheel';
+import { ResultCard } from '../ui/ResultCard';
 import { colors, radius, teamColors } from '../ui/theme';
 import { useScreenAwake } from '../ui/useScreenAwake';
 
@@ -100,6 +104,14 @@ export function Match({
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
 
+  // Between games: the Loser's Wheel and the result card, captured ahead of time
+  // so sharing opens instantly (Safari only shares straight from a tap).
+  const [wheel, setWheel] = useState<{ options: string[]; landed: number } | null>(null);
+  const [wheelDone, setWheelDone] = useState(false);
+  const [wheelResult, setWheelResult] = useState<string | null>(null);
+  const [resultImage, setResultImage] = useState<{ key: string; uri: string } | null>(null);
+  const cardRef = useRef<View>(null);
+
   // The team that lost the last rally gets the next Party Card dare.
   const [lastLoser, setLastLoser] = useState<Team | null>(null);
 
@@ -146,7 +158,7 @@ export function Match({
     setMatch(state);
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
     setLastLoser(other(team));
-    const p = promptForEvents(events, state, spice);
+    const p = promptForEvents(events, state, spice, Math.random, { calm: settings.calm });
     const next = p?.big ? p : (moment ?? p);
     if (next) show(next);
     // Play has moved on: an old banner would now be out of date.
@@ -175,7 +187,45 @@ export function Match({
     });
   };
 
+  const resetBetweenGames = () => {
+    setWheel(null);
+    setWheelResult(null);
+  };
+
+  const spinWheel = () => {
+    if (match.winner === null) return;
+    const spin = spinLosersWheel(names[other(match.winner)], names[match.winner], spice);
+    setWheelDone(false);
+    setWheel(spin);
+    if (settings.sound) playSound('drumroll');
+  };
+  const onWheelDone = () => {
+    if (!wheel) return;
+    const result = wheel.options[wheel.landed];
+    setWheelDone(true);
+    setWheelResult(result);
+    announce(
+      { emoji: '🎡', title: "Loser's Wheel", body: result, sound: 'kazoo' },
+      { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) },
+    );
+  };
+
+  // Capture the result card once the game-over screen is up.
+  const imageKey = `${match.scores.join('-')}-${match.rallies}`;
+  const gameOverShown = focused && match.winner !== null && prompt === null && pendingMoment === null && wheel === null;
+  useEffect(() => {
+    if (!gameOverShown || resultImage?.key === imageKey) return;
+    const timer = setTimeout(() => {
+      if (!cardRef.current) return;
+      captureRef(cardRef, { format: 'png', quality: 1, result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile' })
+        .then((uri) => setResultImage({ key: imageKey, uri }))
+        .catch(() => {});
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [gameOverShown, imageKey, resultImage]);
+
   const rematch = () => {
+    resetBetweenGames();
     const loser = match.winner === null ? firstServer : other(match.winner);
     setMatch(newMatch(config, loser));
     setHouseRule(drawCard(rules, houseRule ? [houseRule.id] : []));
@@ -218,6 +268,7 @@ export function Match({
           onPress={() => {
             // Undoing the winning point takes the result back out of the round robin too.
             if (roundRobin && match.winner !== null) reportRoundRobin(roundRobin, config.teamNames, null);
+            resetBetweenGames();
             setMatch(undo(match));
           }}
           disabled={match.history.length === 0}
@@ -377,30 +428,47 @@ export function Match({
             </>
           ) : undefined}
         </Takeover>
+      ) : wheel !== null ? (
+        <Takeover
+          visible
+          accent={colors.orange}
+          hero={<LosersWheel key={wheel.options.join('|')} options={wheel.options} landed={wheel.landed} onDone={onWheelDone} />}
+          onClose={() => wheelDone && setWheel(null)}
+        >
+          {wheelDone ? <Button label="Back to the results" onPress={() => setWheel(null)} /> : <></>}
+        </Takeover>
       ) : (
         <Takeover
           visible={match.winner !== null && prompt === null}
-          emoji={match.winner !== null && match.scores[other(match.winner)] === 0 ? '🥒' : '🏆'}
-          title={match.winner !== null ? winsTitle(names[match.winner]) : ''}
-          body={`${match.scores[0]} – ${match.scores[1]} · ${match.rallies} rallies`}
           accent={match.winner !== null ? teamColors[match.winner] : colors.pickle}
+          hero={
+            <View style={styles.resultHero}>
+              <ResultCard ref={cardRef} match={match} />
+              {wheelResult && <Text style={styles.wheelResult}>🎡 {wheelResult}</Text>}
+            </View>
+          }
           onClose={() => {}}
         >
           <Button
             label="📣 Share the result"
-            onPress={() => Share.share({ message: shareText(match) }).catch(() => {})}
+            onPress={() => shareImage(resultImage?.key === imageKey ? resultImage.uri : null, shareText(match))}
           />
+          {!wheelResult && <Button label="🎡 Spin the Loser's Wheel" variant="pink" onPress={spinWheel} />}
           {roundRobin ? (
-            <Button label="🏟️ Back to the Round Robin" variant="pink" onPress={back} />
+            <Button label="🏟️ Back to the Round Robin" variant="secondary" onPress={back} />
           ) : (
-            <Button label="🔁 Rematch" variant="pink" onPress={rematch} />
+            <Button label="🔁 Rematch" variant="secondary" onPress={rematch} />
           )}
-          <Button
-            label={access.isPro ? '📊 Crew stats & rivalries' : '👑 Who owns this rivalry? See Crew Stats'}
-            variant="secondary"
-            onPress={() => (access.isPro ? router.push('/stats') : openPaywall('crewStats'))}
-          />
-          {!roundRobin && <Button label="Home" variant="ghost" onPress={back} />}
+          <View style={styles.resultRow}>
+            <Button
+              label={access.isPro ? '📊 Crew stats' : '👑 Crew stats'}
+              variant="ghost"
+              small
+              style={{ flex: 1 }}
+              onPress={() => (access.isPro ? router.push('/stats') : openPaywall('crewStats'))}
+            />
+            {!roundRobin && <Button label="Home" variant="ghost" small style={{ flex: 1 }} onPress={back} />}
+          </View>
         </Takeover>
       )}
     </SafeAreaView>
@@ -462,6 +530,9 @@ const styles = StyleSheet.create({
     minWidth: 78,
   },
   momentText: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  resultHero: { alignSelf: 'stretch', alignItems: 'center', gap: 10 },
+  wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  resultRow: { flexDirection: 'row', gap: 10 },
   banner: {
     position: 'absolute',
     top: 0,

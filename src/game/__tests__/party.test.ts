@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard, packsInSeason } from '../cards';
-import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents, waterBreakDue } from '../party';
+import { LOSERS_WHEEL, MOMENTS, momentPrompt, momentRallyWinner, promptForEvents, spinLosersWheel, waterBreakDue } from '../party';
 import { newMatch } from '../scoring';
 import { WILD_ACTS, renderPenalty } from '../spice';
 
@@ -70,6 +70,37 @@ describe('promptForEvents', () => {
   });
   it('fills moment templates', () => {
     expect(momentPrompt('net', 'Sam', 'tipsy').body).toBe('Sam fed the net. Pay the tax: take 1 sip.');
+  });
+});
+
+describe('calm mode', () => {
+  const calm = { calm: true };
+  it('skips the everyday prompts', () => {
+    expect(promptForEvents([{ type: 'sideOut', to: 1 }], state, 'tipsy', () => 0, calm)).toBeNull();
+    expect(promptForEvents([{ type: 'streak', team: 0, length: 4 }], state, 'tipsy', () => 0, calm)).toBeNull();
+    expect(promptForEvents([{ type: 'tied', score: 8 }], state, 'tipsy', () => 0, calm)).toBeNull();
+  });
+  it('keeps the big moments', () => {
+    expect(promptForEvents([{ type: 'gamePoint', team: 0 }], state, 'tipsy', () => 0, calm)?.title).toBe('Game Point');
+    expect(promptForEvents([{ type: 'pickleWatch', team: 1 }], state, 'tipsy', () => 0, calm)?.title).toBe('Pickle Watch');
+    expect(
+      promptForEvents([{ type: 'gameOver', winner: 0, pickled: true }], state, 'tipsy', () => 0, calm)?.title,
+    ).toBe('PICKLED!');
+  });
+});
+
+describe("Loser's Wheel", () => {
+  it('lands on one of its outcomes, naming the teams', () => {
+    const spin = spinLosersWheel('Bangers', 'Dinkers', 'tipsy', () => 0.99);
+    expect(spin.options).toHaveLength(LOSERS_WHEEL.length);
+    expect(spin.landed).toBe(LOSERS_WHEEL.length - 1);
+    for (const o of spin.options) expect(o).toMatch(/Bangers|Dinkers/);
+    expect(spin.options.join(' ')).not.toMatch(/\{|\}/);
+  });
+  it('never mentions alcohol in chill mode', () => {
+    for (const o of spinLosersWheel('Bangers', 'Dinkers', 'chill', () => 0).options) {
+      expect(o.toLowerCase()).not.toMatch(/\bsips?\b|gulp|beer|booze/);
+    }
   });
 });
 

@@ -101,6 +101,7 @@ export function promptForEvents(
   state: MatchState,
   spice: Spice,
   rng: () => number = Math.random,
+  opts: { calm?: boolean } = {},
 ): PartyPrompt | null {
   const name = (t: Team) => state.config.teamNames[t];
   const f = (text: string, vars: Record<string, string> = {}) => fill(text, vars, spice, rng);
@@ -134,6 +135,12 @@ export function promptForEvents(
       body: f('{team} has zero points. Score one now or get pickled.', { team: name(watch.team) }),
       sound: 'drumroll',
     };
+  }
+
+  // Calm mode: only the moments that matter (Pickle Watch, game point, the end of the game).
+  if (opts.calm) {
+    const gp = events.find((e) => e.type === 'gamePoint');
+    if (!gp || gp.type !== 'gamePoint') return null;
   }
 
   const streak = events.find((e) => e.type === 'streak');
@@ -210,3 +217,30 @@ export const WATER_BREAK: PartyPrompt = {
   body: 'Two games down. Everybody drinks a full glass of water before the first serve.',
   sound: 'whoosh',
 };
+
+// --- Loser's Wheel ------------------------------------------------------------
+// Spun from the game-over screen. {loser} / {winner} are team names.
+
+export const LOSERS_WHEEL = [
+  '{loser}, {sips:2}.',
+  '{winner} pick the house rule for the next game.',
+  "{loser} carry the winners' paddles to the next game.",
+  '{loser} serve the first point of the next game with their off hand.',
+  '{loser} perform a victory dance in honor of {winner}.',
+  '{loser} call the score for the whole next game in a sports-announcer voice.',
+  "{loser}: compliment each winner's best shot. Out loud. With feeling.",
+  'Lucky spin! {loser} get off free this time.',
+  '{loser} owe {winner} a cold drink after the session.',
+  'Rematch! If {loser} lose again, they {finish}.',
+];
+
+/** Spin the wheel: every outcome, rendered for the current spice, and which one it landed on. */
+export function spinLosersWheel(
+  loser: string,
+  winner: string,
+  spice: Spice,
+  rng: () => number = Math.random,
+): { options: string[]; landed: number } {
+  const options = LOSERS_WHEEL.map((t) => fill(t, { loser, winner }, spice, rng));
+  return { options, landed: Math.floor(rng() * options.length) };
+}

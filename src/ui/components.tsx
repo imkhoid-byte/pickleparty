@@ -151,11 +151,14 @@ export function Takeover({
   accent = colors.pickle,
   children,
   footnote,
+  hero,
   onClose,
 }: {
   visible: boolean;
-  emoji: string;
-  title: string;
+  emoji?: string;
+  title?: string;
+  /** Custom content shown instead of the emoji, title and body (e.g. the result card). */
+  hero?: ReactNode;
   body?: string;
   accent?: string;
   children?: ReactNode;
@@ -167,13 +170,20 @@ export function Takeover({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Dismiss">
         <Pressable style={[styles.takeover, { borderColor: accent }]} onPress={() => {}}>
-          <Text style={styles.takeoverEmoji}>{emoji}</Text>
-          <Text style={[styles.takeoverTitle, { color: accent }]}>{title}</Text>
-          {body ? <Text style={styles.takeoverBody}>{body}</Text> : null}
-          <View style={{ gap: 10, alignSelf: 'stretch', marginTop: 8 }}>
-            {children ?? <Button label="Let's go!" onPress={onClose} />}
-          </View>
-          {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
+          {/* Scrolls when the content is taller than a small phone's screen. */}
+          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.takeoverContent} bounces={false}>
+            {hero ?? (
+              <>
+                {emoji ? <Text style={styles.takeoverEmoji}>{emoji}</Text> : null}
+                {title ? <Text style={[styles.takeoverTitle, { color: accent }]}>{title}</Text> : null}
+                {body ? <Text style={styles.takeoverBody}>{body}</Text> : null}
+              </>
+            )}
+            <View style={{ gap: 10, alignSelf: 'stretch', marginTop: 8 }}>
+              {children ?? <Button label="Let's go!" onPress={onClose} />}
+            </View>
+            {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -229,11 +239,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 3,
     padding: 26,
-    alignItems: 'center',
-    gap: 10,
     width: '100%',
     maxWidth: 420,
+    maxHeight: '100%',
   },
+  takeoverContent: { alignItems: 'center', gap: 10 },
   takeoverEmoji: { fontSize: 72 },
   takeoverTitle: { fontSize: 32, fontWeight: '900', textAlign: 'center' },
   footnote: { color: colors.muted, fontSize: 13, textAlign: 'center' },
