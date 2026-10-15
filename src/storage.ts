@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
+import type { RRSession } from './game/roundRobin';
 import { Team } from './game/scoring';
 import { AnnouncerId, announcerFor } from './audio/personas';
 import { Spice } from './game/spice';
@@ -61,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const SETTINGS_KEY = 'pickleparty.settings.v1';
 const HISTORY_KEY = 'pickleparty.history.v1';
+const ROUND_ROBIN_KEY = 'pickleparty.roundrobin.v1';
 const MAX_HISTORY = 200;
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -94,4 +96,15 @@ export async function addGame(record: GameRecord): Promise<GameRecord[]> {
 
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
+}
+
+/** The open-play round robin in progress, if any. */
+export async function loadRoundRobin(): Promise<RRSession | null> {
+  const s = await readJson<RRSession | null>(ROUND_ROBIN_KEY, null);
+  return s && Array.isArray(s.players) && Array.isArray(s.rounds) ? { ...s, target: s.target ?? 11 } : null;
+}
+
+export async function saveRoundRobin(session: RRSession | null): Promise<void> {
+  if (session) await AsyncStorage.setItem(ROUND_ROBIN_KEY, JSON.stringify(session));
+  else await AsyncStorage.removeItem(ROUND_ROBIN_KEY);
 }

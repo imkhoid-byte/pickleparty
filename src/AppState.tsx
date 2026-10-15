@@ -1,6 +1,7 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { Card, PACKS, PackId, cardsForPacks, customCards } from './game/cards';
+import { RRLink, RRSession, recordResult } from './game/roundRobin';
 import { Access, computeAccess, usablePacks } from './monetization/entitlements';
 import { StoreState, fetchStoreState } from './purchases';
 import {
@@ -10,7 +11,9 @@ import {
   addGame,
   clearHistory,
   loadHistory,
+  loadRoundRobin,
   loadSettings,
+  saveRoundRobin,
   saveSettings,
 } from './storage';
 
@@ -27,6 +30,11 @@ interface AppState {
   recordGame: (record: GameRecord) => void;
   resetHistory: () => void;
   applyStoreState: (state: StoreState) => void;
+  /** The open-play round robin in progress (saved on the phone), or null. */
+  roundRobin: RRSession | null;
+  setRoundRobin: (update: (prev: RRSession | null) => RRSession | null) => void;
+  /** A round robin game scored in the app reports its result here. */
+  reportRoundRobin: (link: RRLink, teamNames: [string, string], winner: 0 | 1 | null, score?: [number, number]) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -35,6 +43,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [history, setHistory] = useState<GameRecord[]>([]);
+  const [roundRobin, setRoundRobinState] = useState<RRSession | null>(null);
+
+  const setRoundRobin = useCallback((update: (prev: RRSession | null) => RRSession | null) => {
+    setRoundRobinState((prev) => {
+      const next = update(prev);
+      if (next !== prev) saveRoundRobin(next).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const reportRoundRobin = useCallback(
+    (link: RRLink, teamNames: [string, string], winner: 0 | 1 | null, score?: [number, number]) =>
+      setRoundRobin((prev) => (prev ? recordResult(prev, link, teamNames, winner, score) : prev)),
+    [setRoundRobin],
+  );
   // Re-evaluated on every render that matters; trial expiry only needs day precision.
   const [now, setNow] = useState(() => Date.now());
 
@@ -61,7 +84,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    Promise.all([loadSettings(), loadHistory()]).then(([s, h]) => {
+    Promise.all([loadSettings(), loadHistory(), loadRoundRobin()]).then(([s, h, rr]) => {
+      setRoundRobinState(rr);
       // Players from before the trial existed start theirs now.
       const loaded = s.ageAsked && s.trialStartedAt === null ? { ...s, trialStartedAt: Date.now() } : s;
       setSettings(loaded);
@@ -116,6 +140,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         recordGame,
         resetHistory,
         applyStoreState,
+        roundRobin,
+        setRoundRobin,
+        reportRoundRobin,
       }}
     >
       {children}

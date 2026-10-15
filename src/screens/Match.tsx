@@ -17,7 +17,9 @@ import {
   momentRallyWinner,
   promptForEvents,
   waterBreakDue,
+  winsTitle,
 } from '../game/party';
+import type { RRLink } from '../game/roundRobin';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
@@ -60,8 +62,17 @@ function pendingWaterBreak(history: GameRecord[]): string | null {
 /** A prompt on screen. Cards can be passed; samples from locked packs offer an unlock. */
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
-export function Match({ config, firstServer }: { config: MatchConfig; firstServer: Team }) {
-  const { settings, updateSettings, recordGame, deck, lockedCards, access, history } = useApp();
+export function Match({
+  config,
+  firstServer,
+  roundRobin,
+}: {
+  config: MatchConfig;
+  firstServer: Team;
+  /** Set when this game is one court's game in a round robin. */
+  roundRobin?: RRLink;
+}) {
+  const { settings, updateSettings, recordGame, deck, lockedCards, access, history, reportRoundRobin } = useApp();
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
@@ -118,6 +129,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
+      if (roundRobin) reportRoundRobin(roundRobin, config.teamNames, state.winner, state.scores);
     }
   };
 
@@ -170,7 +182,11 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
           <Text style={styles.speaker}>{audioOn ? '🔊' : '🔇'}</Text>
         </Pressable>
         <Pressable
-          onPress={() => setMatch(undo(match))}
+          onPress={() => {
+            // Undoing the winning point takes the result back out of the round robin too.
+            if (roundRobin && match.winner !== null) reportRoundRobin(roundRobin, config.teamNames, null);
+            setMatch(undo(match));
+          }}
           disabled={match.history.length === 0}
           hitSlop={12}
           accessibilityRole="button"
@@ -314,7 +330,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
         <Takeover
           visible={match.winner !== null}
           emoji={match.winner !== null && match.scores[other(match.winner)] === 0 ? '🥒' : '🏆'}
-          title={match.winner !== null ? `${names[match.winner]} wins!` : ''}
+          title={match.winner !== null ? winsTitle(names[match.winner]) : ''}
           body={`${match.scores[0]} – ${match.scores[1]} · ${match.rallies} rallies`}
           accent={match.winner !== null ? teamColors[match.winner] : colors.pickle}
           onClose={() => {}}
@@ -323,13 +339,17 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
             label="📣 Share the result"
             onPress={() => Share.share({ message: shareText(match) }).catch(() => {})}
           />
-          <Button label="🔁 Rematch" variant="pink" onPress={rematch} />
+          {roundRobin ? (
+            <Button label="🏟️ Back to the Round Robin" variant="pink" onPress={back} />
+          ) : (
+            <Button label="🔁 Rematch" variant="pink" onPress={rematch} />
+          )}
           <Button
             label={access.isPro ? '📊 Crew stats & rivalries' : '👑 Who owns this rivalry? See Crew Stats'}
             variant="secondary"
             onPress={() => (access.isPro ? router.push('/stats') : openPaywall('crewStats'))}
           />
-          <Button label="Home" variant="ghost" onPress={back} />
+          {!roundRobin && <Button label="Home" variant="ghost" onPress={back} />}
         </Takeover>
       )}
     </SafeAreaView>

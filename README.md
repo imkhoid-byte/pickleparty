@@ -31,7 +31,7 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 - ⚔️ **Crew Stats:** head-to-head rivalries, win streaks, Hall of Shame.
 - 📜 **Unlimited history.** Free players keep every game, but only the latest 10 are visible.
 - 📣 **Recap cards:** a weekly brag sheet to post in the group chat.
-- 🏟️ **Round Robin:** runs open play with rotating partners, fair sit-outs and live standings.
+- 🏟️ **Round Robin:** runs open play for a crowd. Add everyone's name, pick courts and game length, and each round pairs up new partners with fair sit-outs. Tap **▶ Score it with PickleParty** on a court to play that game with the full party scorer (the pair names are filled in, e.g. "Sam & Alex"), and the result goes back into the standings automatically. Or just tap the winning pair. Latecomers can join between rounds, and the session is saved on the phone until you end it.
 - 🃏 **Every Party Pack:** *Kitchen Nightmares*, *Trick Shot Tour*, *After Dark*, *Date Night*, seasonal packs like 🎃 *Halloween Bash*, and future drops.
 - ✏️ **Custom cards:** your crew's inside jokes, shuffled into the deck.
 - 🐿️ **Announcer voices:** Squeaky Pickle and Big Dill. Classic stays free.

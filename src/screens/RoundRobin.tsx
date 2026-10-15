@@ -1,85 +1,118 @@
 import { useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useApp } from '../AppState';
 import { APP_LINK, HASHTAG } from '../config';
-import { RRRound, maxCourts, nextRound, standings } from '../game/roundRobin';
-import { goBack } from '../navigation';
-import { Button, Card, Chip, Label, Screen } from '../ui/components';
+import { RRLink, addPlayer, maxCourts, nextRound, pairName, recordResult, standings } from '../game/roundRobin';
+import { goBack, playRoundRobinGame } from '../navigation';
+import { Button, Card, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 
 export function RoundRobin() {
+  const { roundRobin } = useApp();
+  return roundRobin && roundRobin.rounds.length > 0 ? <Session /> : <NewSession />;
+}
+
+/** Add the players, pick courts and game length, start round 1. */
+function NewSession() {
+  const { setRoundRobin } = useApp();
   const [players, setPlayers] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
   const [courts, setCourts] = useState(2);
-  const [rounds, setRounds] = useState<RRRound[]>([]);
+  const [target, setTarget] = useState(11);
 
   const add = () => {
     const name = draft.trim();
     if (name && !players.some((p) => p.toLowerCase() === name.toLowerCase())) setPlayers([...players, name]);
     setDraft('');
   };
+  const start = () => {
+    const first = nextRound(players, courts, []);
+    setRoundRobin(() => ({ players, courts, target, rounds: [first] }));
+  };
+  const usable = Math.min(courts, maxCourts(players.length));
 
-  if (rounds.length === 0) {
-    const usable = Math.min(courts, maxCourts(players.length));
-    return (
-      <Screen title="Round Robin" onBack={goBack}>
-        <Text style={styles.intro}>
-          Add everyone at open play. We rotate partners, keep sit-outs fair and track who&apos;s winning.
-        </Text>
-        <Label>Players ({players.length})</Label>
-        <View style={styles.addRow}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={add}
-            placeholder="Player name"
-            placeholderTextColor={colors.muted}
-            returnKeyType="done"
-            blurOnSubmit={false}
-            maxLength={20}
-            style={styles.input}
-          />
-          <Button label="Add" small onPress={add} disabled={!draft.trim()} />
-        </View>
-        <View style={styles.chips}>
-          {players.map((p) => (
-            <Chip key={p} label={`${p}  ✕`} selected onPress={() => setPlayers(players.filter((x) => x !== p))} />
-          ))}
-        </View>
-        <Label>Courts</Label>
-        <View style={styles.chips}>
-          {[1, 2, 3, 4].map((n) => (
-            <Chip key={n} label={String(n)} selected={courts === n} onPress={() => setCourts(n)} />
-          ))}
-        </View>
-        <Text style={styles.intro}>
-          {players.length < 4
-            ? 'Add at least 4 players.'
-            : `${usable} court${usable === 1 ? '' : 's'} in play, ${players.length - usable * 4} sitting out each round.`}
-        </Text>
-        <Button
-          label="Start round 1"
-          disabled={players.length < 4}
-          onPress={() => setRounds([nextRound(players, courts, [])])}
+  return (
+    <Screen title="Round Robin" onBack={goBack}>
+      <Text style={styles.intro}>
+        For open play with a crowd. Add everyone who&apos;s playing: each round we pair up new partners, keep
+        sit-outs fair and rank every player.
+      </Text>
+      <Label>Players ({players.length})</Label>
+      <View style={styles.addRow}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={add}
+          placeholder="Player name"
+          placeholderTextColor={colors.muted}
+          returnKeyType="done"
+          blurOnSubmit={false}
+          maxLength={20}
+          style={styles.input}
         />
-      </Screen>
-    );
-  }
+        <Button label="Add" small onPress={add} disabled={!draft.trim()} />
+      </View>
+      <View style={styles.chips}>
+        {players.map((p) => (
+          <Chip key={p} label={`${p}  ✕`} selected onPress={() => setPlayers(players.filter((x) => x !== p))} />
+        ))}
+      </View>
+      <Label>Courts</Label>
+      <View style={styles.chips}>
+        {[1, 2, 3, 4].map((n) => (
+          <Chip key={n} label={String(n)} selected={courts === n} onPress={() => setCourts(n)} />
+        ))}
+      </View>
+      <Label>Games to</Label>
+      <View style={styles.chips}>
+        {[7, 11, 15].map((n) => (
+          <Chip key={n} label={String(n)} selected={target === n} onPress={() => setTarget(n)} />
+        ))}
+      </View>
+      <Text style={styles.intro}>
+        {players.length < 4
+          ? 'Add at least 4 players.'
+          : `${usable} court${usable === 1 ? '' : 's'} in play, ${players.length - usable * 4} sitting out each round.`}
+      </Text>
+      <Button label="Start round 1" disabled={players.length < 4} onPress={start} />
+    </Screen>
+  );
+}
 
-  const current = rounds[rounds.length - 1];
+/** The session in progress. Saved on the phone, so leaving this screen doesn't lose it. */
+function Session() {
+  const { roundRobin, setRoundRobin } = useApp();
+  const [late, setLate] = useState('');
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  if (!roundRobin) return null;
+  const { players, rounds, target } = roundRobin;
+  const roundIndex = rounds.length - 1;
+  const current = rounds[roundIndex];
   const table = standings(players, rounds);
   const allScored = current.matches.every((m) => m.winner !== null);
+  const newcomers = players.filter((p) => !rounds.some((r) => r.byes.includes(p) || r.matches.some((m) => m.teams.flat().includes(p))));
 
   const setWinner = (matchIndex: number, team: 0 | 1) => {
-    setRounds((rs) =>
-      rs.map((r, i) =>
-        i !== rs.length - 1
-          ? r
-          : { ...r, matches: r.matches.map((m, j) => (j === matchIndex ? { ...m, winner: team } : m)) },
-      ),
+    const m = current.matches[matchIndex];
+    const link: RRLink = { round: roundIndex, match: matchIndex };
+    setRoundRobin((rr) => (rr ? recordResult(rr, link, [pairName(m.teams[0]), pairName(m.teams[1])], team) : rr));
+  };
+  const score = (matchIndex: number) => {
+    const m = current.matches[matchIndex];
+    playRoundRobinGame(
+      { format: 'doubles', scoring: 'sideout', target, teamNames: [pairName(m.teams[0]), pairName(m.teams[1])] },
+      { round: roundIndex, match: matchIndex },
     );
   };
-
+  const nextUp = () => {
+    const next = nextRound(players, roundRobin.courts, rounds);
+    setRoundRobin((rr) => (rr ? { ...rr, rounds: [...rr.rounds, next] } : rr));
+  };
+  const addLate = () => {
+    setRoundRobin((rr) => (rr ? addPlayer(rr, late) : rr));
+    setLate('');
+  };
   const share = () => {
     const lines = table.slice(0, 5).map((s, i) => `${i + 1}. ${s.name} ${s.wins}-${s.losses}`);
     Share.share({
@@ -89,31 +122,43 @@ export function RoundRobin() {
 
   return (
     <Screen title={`Round ${rounds.length}`} onBack={goBack}>
+      <Text style={styles.intro}>
+        Score a court&apos;s game with PickleParty for the full party, or just tap the winning pair when it&apos;s done.
+      </Text>
       {current.matches.map((m, i) => (
         <Card key={m.court}>
-          <Text style={styles.court}>COURT {m.court} · tap the winners</Text>
+          <Text style={styles.court}>COURT {m.court}</Text>
           {m.teams.map((team, t) => (
             <Pressable
               key={t}
               onPress={() => setWinner(i, t as 0 | 1)}
               accessibilityRole="button"
+              accessibilityLabel={`${pairName(team)} won`}
               style={[
                 styles.team,
                 m.winner === t && { borderColor: teamColors[t], backgroundColor: colors.surfaceHi },
               ]}
             >
-              <Text style={[styles.teamText, { color: teamColors[t] }]}>{team.join(' & ')}</Text>
-              {m.winner === t && <Text style={styles.teamText}>🏆</Text>}
+              <Text style={[styles.teamText, { color: teamColors[t] }]}>{pairName(team)}</Text>
+              <Text style={styles.teamText}>
+                {m.score ? m.score[t] : ''}
+                {m.winner === t ? ' 🏆' : ''}
+              </Text>
             </Pressable>
           ))}
+          {m.winner === null ? (
+            <Button label="▶ Score it with PickleParty" small onPress={() => score(i)} />
+          ) : (
+            <Text style={styles.hint}>{m.score ? 'Scored in the app.' : 'Tap the other pair to change it.'}</Text>
+          )}
         </Card>
       ))}
       {current.byes.length > 0 && <Text style={styles.intro}>Sitting out: {current.byes.join(', ')}</Text>}
 
       <Button
-        label={allScored ? `Start round ${rounds.length + 1}` : 'Enter all winners to continue'}
+        label={allScored ? `Start round ${rounds.length + 1}` : 'Finish every court to continue'}
         disabled={!allScored}
-        onPress={() => setRounds([...rounds, nextRound(players, courts, rounds)])}
+        onPress={nextUp}
       />
 
       <Label>Standings</Label>
@@ -123,15 +168,56 @@ export function RoundRobin() {
             <Text style={styles.rank}>{i + 1}.</Text>
             <Text style={styles.name}>{s.name}</Text>
             <Text style={styles.record}>
-              {s.wins}-{s.losses}
+              {newcomers.includes(s.name) ? 'next round' : `${s.wins}-${s.losses}`}
             </Text>
           </View>
         ))}
       </Card>
+
+      <Label>Someone just showed up?</Label>
+      <View style={styles.addRow}>
+        <TextInput
+          value={late}
+          onChangeText={setLate}
+          onSubmitEditing={addLate}
+          placeholder="Player name"
+          placeholderTextColor={colors.muted}
+          returnKeyType="done"
+          maxLength={20}
+          style={styles.input}
+        />
+        <Button label="Add" small onPress={addLate} disabled={!late.trim()} />
+      </View>
+      <Text style={styles.hint}>They join from the next round.</Text>
+
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Button label="📣 Share" variant="secondary" small style={{ flex: 1 }} onPress={share} />
-        <Button label="End session" variant="ghost" small style={{ flex: 1 }} onPress={() => setRounds([])} />
+        <Button label="End session" variant="ghost" small style={{ flex: 1 }} onPress={() => setConfirmEnd(true)} />
       </View>
+
+      <Takeover
+        visible={confirmEnd}
+        emoji="🏁"
+        title="End the session?"
+        body="The standings will be cleared. Share them first if you want to keep a record."
+        accent={colors.pink}
+        onClose={() => setConfirmEnd(false)}
+      >
+        <Button
+          label="📣 Share standings"
+          variant="secondary"
+          onPress={share}
+        />
+        <Button
+          label="End it"
+          variant="pink"
+          onPress={() => {
+            setConfirmEnd(false);
+            setRoundRobin(() => null);
+          }}
+        />
+        <Button label="Keep playing" variant="ghost" onPress={() => setConfirmEnd(false)} />
+      </Takeover>
     </Screen>
   );
 }
@@ -154,6 +240,7 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   court: { color: colors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
+  hint: { color: colors.muted, fontSize: 13, textAlign: 'center' },
   team: {
     flexDirection: 'row',
     justifyContent: 'space-between',

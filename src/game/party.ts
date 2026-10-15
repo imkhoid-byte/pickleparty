@@ -83,6 +83,9 @@ export function momentPrompt(
   return { emoji: moment.emoji, title: t.title, body: fill(t.body, { who, them }, spice, rng), sound: t.sound };
 }
 
+/** "Sam & Alex win!" but "Lob Squad wins!" */
+export const winsTitle = (team: string) => `${team} ${/ & /.test(team) ? 'win' : 'wins'}!`;
+
 /** Chance that a side-out calls for a sip. Kept low: side-outs happen every few rallies. */
 export const SIDE_OUT_CHANCE = 0.1;
 
@@ -116,7 +119,7 @@ export function promptForEvents(
     }
     return {
       emoji: '🏆',
-      title: `${name(over.winner)} wins!`,
+      title: winsTitle(name(over.winner)),
       body: f('{loser}, {sips:2}. {winner} pick the next house rule.', { loser, winner: name(over.winner) }),
       big: true,
       sound: 'kazoo',

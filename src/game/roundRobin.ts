@@ -7,6 +7,8 @@ export interface RRMatch {
   teams: [[string, string], [string, string]];
   /** Index of the winning team, once entered. */
   winner: 0 | 1 | null;
+  /** Final score, when the game was scored in the app. */
+  score?: [number, number];
 }
 
 export interface RRRound {
@@ -116,4 +118,52 @@ export function standings(players: string[], rounds: RRRound[]): RRStanding[] {
     }
   }
   return [...rows.values()].sort((a, b) => b.wins - a.wins || a.losses - b.losses || a.name.localeCompare(b.name));
+}
+
+// --- A saved session ----------------------------------------------------------
+
+export interface RRSession {
+  players: string[];
+  courts: number;
+  /** Points per game, used when a court's game is scored in the app. */
+  target: number;
+  rounds: RRRound[];
+}
+
+/** Which game in the session a scored match belongs to. */
+export interface RRLink {
+  round: number;
+  match: number;
+}
+
+/** A doubles pair as a team name, e.g. "Sam & Alex". */
+export const pairName = (team: [string, string]) => team.join(' & ');
+
+/**
+ * Record a court's result. Ignored if the game no longer exists in this session
+ * (e.g. the session was ended and a new one started while it was being played).
+ * `winner: null` clears it again (the scorer undid the final point).
+ */
+export function recordResult(
+  session: RRSession,
+  link: RRLink,
+  teamNames: [string, string],
+  winner: 0 | 1 | null,
+  score?: [number, number],
+): RRSession {
+  const game = session.rounds[link.round]?.matches[link.match];
+  if (!game || pairName(game.teams[0]) !== teamNames[0] || pairName(game.teams[1]) !== teamNames[1]) return session;
+  const rounds = session.rounds.map((r, i) =>
+    i !== link.round
+      ? r
+      : { ...r, matches: r.matches.map((m, j) => (j === link.match ? { ...m, winner, score: winner === null ? undefined : score } : m)) },
+  );
+  return { ...session, rounds };
+}
+
+/** Someone showed up late: they join from the next round. Names are unique, ignoring case. */
+export function addPlayer(session: RRSession, name: string): RRSession {
+  const n = name.trim();
+  if (!n || session.players.some((p) => p.toLowerCase() === n.toLowerCase())) return session;
+  return { ...session, players: [...session.players, n] };
 }

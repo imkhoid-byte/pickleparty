@@ -16,7 +16,7 @@ import { colors, radius } from '../ui/theme';
 const LOGO = require('../../assets/brand/logo-badge-512.png');
 
 export function Home() {
-  const { settings, updateSettings, history, access } = useApp();
+  const { settings, updateSettings, history, access, roundRobin } = useApp();
   const [askWild, setAskWild] = useState(false);
   const champ = leaderboard(history)[0];
   const pickles = history.filter((g) => g.pickled).length;
@@ -51,7 +51,7 @@ export function Home() {
       <View style={styles.grid}>
         <Button label="🏆 Stats" variant="secondary" style={styles.cell} onPress={() => router.push('/stats')} />
         <Button
-          label="🏟️ Round Robin"
+          label={roundRobin?.rounds.length ? `🏟️ Round ${roundRobin.rounds.length} live` : '🏟️ Round Robin'}
           variant="secondary"
           style={styles.cell}
           onPress={() => (access.isPro ? router.push('/roundrobin') : openPaywall('roundRobin'))}

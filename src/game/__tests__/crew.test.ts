@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { GameRecord } from '../../storage';
 import { recap, recapText, rivalries, streaks } from '../crew';
-import { RRRound, maxCourts, nextRound, standings } from '../roundRobin';
+import { RRRound, RRSession, addPlayer, maxCourts, nextRound, pairName, recordResult, standings } from '../roundRobin';
 
 let id = 0;
 const game = (a: string, b: string, sa: number, sb: number, date = 1000): GameRecord => ({
@@ -77,5 +77,35 @@ describe('round robin', () => {
     const s = standings(['A', 'B', 'C', 'D'], [r]);
     expect(s.slice(0, 2).map((x) => x.wins)).toEqual([1, 1]);
     expect(s[3].losses).toBe(1);
+  });
+});
+
+describe('round robin session', () => {
+  const round: RRRound = {
+    matches: [{ court: 1, teams: [['Sam', 'Alex'], ['Jo', 'Kim']], winner: null }],
+    byes: ['Pat'],
+  };
+  const session: RRSession = { players: ['Sam', 'Alex', 'Jo', 'Kim', 'Pat'], courts: 1, target: 11, rounds: [round] };
+  const names: [string, string] = ['Sam & Alex', 'Jo & Kim'];
+
+  it('records a game scored in the app, and clears it on undo', () => {
+    const done = recordResult(session, { round: 0, match: 0 }, names, 1, [7, 11]);
+    expect(done.rounds[0].matches[0]).toMatchObject({ winner: 1, score: [7, 11] });
+    expect(standings(done.players, done.rounds).slice(0, 2).map((s) => s.name)).toEqual(['Jo', 'Kim']);
+    const undone = recordResult(done, { round: 0, match: 0 }, names, null);
+    expect(undone.rounds[0].matches[0]).toMatchObject({ winner: null, score: undefined });
+  });
+  it('ignores results for a game that is no longer in the session', () => {
+    expect(recordResult(session, { round: 3, match: 0 }, names, 0)).toBe(session);
+    expect(recordResult(session, { round: 0, match: 0 }, ['Sam & Pat', 'Jo & Kim'], 0)).toBe(session);
+  });
+  it('lets latecomers join, and plays them first', () => {
+    const more = addPlayer(addPlayer(session, '  Lee '), 'lee');
+    expect(more.players).toEqual([...session.players, 'Lee']);
+    const next = nextRound(more.players, 1, more.rounds, () => 0.5);
+    const playing = next.matches.flatMap((m) => m.teams.flat());
+    expect(playing).toContain('Lee');
+    expect(playing).toContain('Pat');
+    expect(pairName(['A', 'B'])).toBe('A & B');
   });
 });
