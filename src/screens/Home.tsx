@@ -22,6 +22,10 @@ export function Home() {
   const pickles = history.filter((g) => g.pickled).length;
   // Free players hear Classic; their own pick comes back if they go Pro.
   const announcer = usableAnnouncer(settings.announcer, access);
+  // After the trial, remind players of the cards they wrote (still saved, just out of the deck).
+  const savedCards = settings.customCards.length;
+  const myCardsLabel =
+    !access.isPro && savedCards > 0 ? `✏️ ${savedCards} card${savedCards === 1 ? '' : 's'} waiting 🔒` : '✏️ My Cards';
 
   // The only automatic paywall: once, right after the free trial ends.
   useEffect(() => {
@@ -54,7 +58,7 @@ export function Home() {
         />
         <Button label="🎁 Packs" variant="secondary" style={styles.cell} onPress={() => router.push('/packs')} />
         <Button
-          label="✏️ My Cards"
+          label={myCardsLabel}
           variant="secondary"
           style={styles.cell}
           onPress={() => (access.isPro ? router.push('/mycards') : openPaywall('customCards'))}

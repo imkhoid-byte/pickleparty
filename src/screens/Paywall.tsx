@@ -44,14 +44,26 @@ const BENEFITS = [
   ['🐿️', 'Announcer voices', 'Squeaky Pickle and Big Dill (Classic is free)'],
 ];
 
+/** Mention the crew's own saved cards: missing what you made sells better than anything new. */
+function headline(reason: PaywallReason, savedCards: number) {
+  const head = HEADLINES[reason] ?? HEADLINES.upgrade;
+  if (savedCards === 0) return head;
+  const cards = `Your ${savedCards} card${savedCards === 1 ? ' is' : 's are'} saved`;
+  if (reason === 'customCards') {
+    return { ...head, title: 'Your cards are waiting', sub: `${cards}. Go Pro to put them back in the deck.` };
+  }
+  if (reason === 'trialEnded') return { ...head, sub: `${head.sub} ${cards} too, ready to come back.` };
+  return head;
+}
+
 export function Paywall({ reason }: { reason: PaywallReason }) {
-  const { access, applyStoreState } = useApp();
+  const { access, applyStoreState, settings } = useApp();
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS);
   const [plan, setPlan] = useState<PlanId>('annual');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const live = storeReady();
-  const head = HEADLINES[reason] ?? HEADLINES.upgrade;
+  const head = headline(reason, settings.customCards.length);
 
   useEffect(() => {
     loadPlans().then(setPlans);
