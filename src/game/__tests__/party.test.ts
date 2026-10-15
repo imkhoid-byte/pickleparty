@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
-import { momentPrompt, promptForEvents } from '../party';
+import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
 import { newMatch } from '../scoring';
 import { renderPenalty } from '../spice';
 
@@ -84,5 +84,20 @@ describe('announcer text', () => {
   it('addresses dares to a team but not votes or rules', () => {
     expect(addressCard('do a dance', 'dare', 'Lob Squad')).toBe('Lob Squad: do a dance');
     expect(addressCard('VOTE: who?', 'vote', 'Lob Squad')).toBe('VOTE: who?');
+  });
+});
+
+describe('moments score the rally', () => {
+  it('faults give the rally to the other team, winners keep it', () => {
+    expect(momentRallyWinner('net', 0)).toBe(1);
+    expect(momentRallyWinner('kitchen', 1)).toBe(0);
+    expect(momentRallyWinner('wayOut', 0)).toBe(1);
+    expect(momentRallyWinner('ace', 0)).toBe(0);
+    expect(momentRallyWinner('erne', 1)).toBe(1);
+    expect(momentRallyWinner('bodyShot', 1)).toBe(1);
+    expect(momentRallyWinner('longRally', 0)).toBe(0);
+  });
+  it('every moment asks a question', () => {
+    for (const m of MOMENTS) expect(m.ask).toMatch(/\?$/);
   });
 });

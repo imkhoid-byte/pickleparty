@@ -8,7 +8,7 @@ import { useApp } from '../AppState';
 import { announce, hush } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
 import { Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
-import { MOMENTS, MomentId, PartyPrompt, momentPrompt, promptForEvents } from '../game/party';
+import { MOMENTS, MomentId, PartyPrompt, momentPrompt, momentRallyWinner, promptForEvents } from '../game/party';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
 import { renderPenalty } from '../game/spice';
 import { goBack, openPaywall } from '../navigation';
@@ -72,14 +72,19 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   // Stop talking when leaving the match.
   useEffect(() => hush, []);
 
-  const onRally = (team: Team) => {
+  /**
+   * Score a rally. A moment (net ball, ace…) brings its own prompt; it's shown
+   * instead of a smaller event prompt, but a game-ending prompt still wins.
+   */
+  const onRally = (team: Team, moment?: PartyPrompt) => {
     if (match.winner !== null) return;
     const { state, events } = rallyWonBy(match, team);
     setMatch(state);
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
     setLastLoser(other(team));
     const p = promptForEvents(events, state, spice);
-    if (p) show(p);
+    const next = p?.big ? p : (moment ?? p);
+    if (next) show(next);
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
@@ -202,6 +207,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
           <Pressable
             key={m.id}
             onPress={() => {
+              if (match.winner !== null) return;
               tap(settings.haptics);
               setPendingMoment(m.id);
             }}
@@ -223,7 +229,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
         <Takeover
           visible
           emoji={MOMENTS.find((m) => m.id === pendingMoment)?.emoji ?? '❓'}
-          title="Who did it?"
+          title={MOMENTS.find((m) => m.id === pendingMoment)?.ask ?? 'Who did it?'}
           onClose={() => setPendingMoment(null)}
         >
           {([0, 1] as Team[]).map((t) => (
@@ -232,7 +238,11 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
               label={names[t]}
               variant={t === 0 ? 'primary' : 'pink'}
               onPress={() => {
-                show(momentPrompt(pendingMoment, names[t], spice, names[other(t)]));
+                // The moment ended the rally, so it scores it too.
+                onRally(
+                  momentRallyWinner(pendingMoment, t),
+                  momentPrompt(pendingMoment, names[t], spice, names[other(t)]),
+                );
                 setPendingMoment(null);
               }}
             />

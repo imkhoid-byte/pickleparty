@@ -17,15 +17,30 @@ export interface PartyPrompt {
 
 export type MomentId = 'net' | 'ace' | 'kitchen' | 'erne' | 'longRally' | 'bodyShot' | 'wayOut';
 
-export const MOMENTS: { id: MomentId; emoji: string; label: string }[] = [
-  { id: 'net', emoji: '🥅', label: 'Into the net' },
-  { id: 'ace', emoji: '⚡', label: 'Ace' },
-  { id: 'kitchen', emoji: '🍳', label: 'Kitchen fault' },
-  { id: 'erne', emoji: '🦅', label: 'Erne / ATP' },
-  { id: 'longRally', emoji: '🔁', label: '10+ rally' },
-  { id: 'bodyShot', emoji: '🎯', label: 'Body shot' },
-  { id: 'wayOut', emoji: '🚀', label: 'Way out' },
+export interface Moment {
+  id: MomentId;
+  emoji: string;
+  label: string;
+  /** Asked before the prompt: which team did it? */
+  ask: string;
+  /** Every moment ends the rally: does the team that did it win it, or lose it? */
+  rallyGoesTo: 'doer' | 'other';
+}
+
+export const MOMENTS: Moment[] = [
+  { id: 'net', emoji: '🥅', label: 'Into the net', ask: 'Who hit the net?', rallyGoesTo: 'other' },
+  { id: 'ace', emoji: '⚡', label: 'Ace', ask: 'Who served the ace?', rallyGoesTo: 'doer' },
+  { id: 'kitchen', emoji: '🍳', label: 'Kitchen fault', ask: 'Who faulted?', rallyGoesTo: 'other' },
+  { id: 'erne', emoji: '🦅', label: 'Erne / ATP', ask: 'Who hit it?', rallyGoesTo: 'doer' },
+  { id: 'longRally', emoji: '🔁', label: '10+ rally', ask: 'Who won the rally?', rallyGoesTo: 'doer' },
+  { id: 'bodyShot', emoji: '🎯', label: 'Body shot', ask: 'Who hit the body shot?', rallyGoesTo: 'doer' },
+  { id: 'wayOut', emoji: '🚀', label: 'Way out', ask: 'Who hit it out?', rallyGoesTo: 'other' },
 ];
+
+/** The team that wins the rally when `doer` caused this moment. */
+export function momentRallyWinner(id: MomentId, doer: Team): Team {
+  return MOMENTS.find((m) => m.id === id)!.rallyGoesTo === 'doer' ? doer : other(doer);
+}
 
 // {who} is the team that did it, {them} the other team.
 const MOMENT_TEXT: Record<MomentId, { title: string; body: string; sound: SoundId }> = {
@@ -33,7 +48,7 @@ const MOMENT_TEXT: Record<MomentId, { title: string; body: string; sound: SoundI
   ace: { title: 'Ace!', body: '{who} aced {them}. {them}, {sips:1}.', sound: 'zap' },
   kitchen: { title: 'Kitchen Fault', body: 'Get out of the kitchen! {who}, {sips:1}.', sound: 'buzzer' },
   erne: { title: 'Highlight Reel', body: 'Legendary shot by {who}! {them}, {sips:3}.', sound: 'airhorn' },
-  longRally: { title: 'Dink War', body: 'That rally was a movie. {who} and {them}, everyone {sips:1}.', sound: 'fanfare' },
+  longRally: { title: 'Dink War', body: '{who} won a movie of a rally. {them}, {sips:1}. Everyone else too.', sound: 'fanfare' },
   bodyShot: { title: 'Body Shot', body: '{who} tagged {them}. Payback: {who}, {sips:1}.', sound: 'zap' },
   wayOut: { title: 'Launched It', body: 'That ball is in orbit. {who}, {sips:2}.', sound: 'whoosh' },
 };
