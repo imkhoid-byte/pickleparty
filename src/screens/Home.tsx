@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
@@ -7,11 +7,12 @@ import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
 import { autoPaywall } from '../monetization/entitlements';
 import { openPaywall } from '../navigation';
-import { Button, Chip, Label, Screen } from '../ui/components';
+import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
 export function Home() {
   const { settings, updateSettings, history, access } = useApp();
+  const [askWild, setAskWild] = useState(false);
   const champ = leaderboard(history)[0];
   const pickles = history.filter((g) => g.pickled).length;
 
@@ -62,7 +63,7 @@ export function Home() {
             label={`${s.emoji} ${s.label}`}
             selected={settings.spice === s.id}
             color={s.id === 'wild' ? colors.orange : s.id === 'tipsy' ? colors.pink : colors.pickle}
-            onPress={() => updateSettings({ spice: s.id })}
+            onPress={() => (s.id === 'wild' && settings.spice !== 'wild' ? setAskWild(true) : updateSettings({ spice: s.id }))}
           />
         ))}
       </View>
@@ -86,6 +87,24 @@ export function Home() {
           <Stat value={champ ? champ.name : '—'} label="top dog" />
         </View>
       )}
+      <Takeover
+        visible={askWild}
+        emoji="🔥"
+        title="Wild is for couples"
+        body="Each team is a couple. Every penalty is a drink plus a flirty act with your own partner, never anyone else. Anyone can skip an act, no questions asked. Is everyone playing on board?"
+        accent={colors.orange}
+        onClose={() => setAskWild(false)}
+      >
+        <Button
+          label="We're all in 🔥"
+          variant="pink"
+          onPress={() => {
+            updateSettings({ spice: 'wild' });
+            setAskWild(false);
+          }}
+        />
+        <Button label="Keep it Tipsy" variant="ghost" onPress={() => setAskWild(false)} />
+      </Takeover>
     </Screen>
   );
 }

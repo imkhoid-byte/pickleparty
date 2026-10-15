@@ -150,6 +150,7 @@ export function Takeover({
   body,
   accent = colors.pickle,
   children,
+  footnote,
   onClose,
 }: {
   visible: boolean;
@@ -158,6 +159,8 @@ export function Takeover({
   body?: string;
   accent?: string;
   children?: ReactNode;
+  /** Small print under the buttons. */
+  footnote?: string;
   onClose: () => void;
 }) {
   return (
@@ -170,6 +173,7 @@ export function Takeover({
           <View style={{ gap: 10, alignSelf: 'stretch', marginTop: 8 }}>
             {children ?? <Button label="Let's go!" onPress={onClose} />}
           </View>
+          {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -232,5 +236,6 @@ const styles = StyleSheet.create({
   },
   takeoverEmoji: { fontSize: 72 },
   takeoverTitle: { fontSize: 32, fontWeight: '900', textAlign: 'center' },
+  footnote: { color: colors.muted, fontSize: 13, textAlign: 'center' },
   takeoverBody: { color: colors.text, fontSize: 20, fontWeight: '600', textAlign: 'center', lineHeight: 28 },
 });

@@ -57,6 +57,8 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
   const [lastLoser, setLastLoser] = useState<Team | null>(null);
 
   const spice = settings.spice;
+  // Rendered once per rule so random penalties (exercises, Wild acts) don't change on every rally.
+  const houseRuleText = useMemo(() => (houseRule ? renderPenalty(houseRule.text, spice) : ''), [houseRule, spice]);
   const names = config.teamNames;
   const audioOn = settings.sound || settings.voice;
 
@@ -152,7 +154,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
           accessibilityHint="Draw a different house rule"
         >
           <Text style={styles.ruleText} numberOfLines={3}>
-            📜 {renderPenalty(houseRule.text, spice)}
+            📜 {houseRuleText}
           </Text>
           <Text style={styles.ruleHint}>tap for new rule</Text>
         </Pressable>
@@ -255,6 +257,7 @@ export function Match({ config, firstServer }: { config: MatchConfig; firstServe
           title={prompt.title}
           body={prompt.body}
           accent={prompt.lockedPack ? colors.sky : prompt.big ? colors.orange : colors.pickle}
+          footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
           onClose={() => setPrompt(null)}
         >
           {prompt.card ? (

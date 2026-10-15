@@ -19,7 +19,8 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 - **House Rules.** Each game starts with a random rule card ("Nobody can say *out*, say *pickle*"). Tap it for a different one.
 - **Spice levels.**
   - 🧃 **Chill**: no alcohol at all. Penalties become squats, planks and water. Anyone can play.
-  - 🍺 **Tipsy** / 🔥 **Wild**: sips, and a Pickle Penalty for getting shut out. Unlocked only after the 21+ age gate.
+  - 🍺 **Tipsy**: sips, and a Pickle Penalty for getting shut out. Unlocked only after the 21+ age gate.
+  - 🔥 **Wild** (couples only, 21+): every penalty is a drink plus a flirty act with your own partner ("take 1 sip, then give your partner a 5-second kiss"). Choosing it asks everyone to opt in, teams get couple names, and every prompt reminds players they can skip an act. Acts live in `WILD_ACTS` in `src/game/spice.ts`.
 - **Party Deck.** Dares, trick shots, house rules and group votes, playable anytime (on or off the court).
 - **Stats.** Win/loss rankings by team name, with a count of pickles, saved on the device.
 - **Built for sharing.** You can share any result ("…and PICKLED them 🥒💀") or any card straight to the group chat.

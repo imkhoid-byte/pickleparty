@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useApp } from '../AppState';
 import { Format, ScoringSystem, Team } from '../game/scoring';
 import { goBack, startMatch } from '../navigation';
 import { Button, Chip, Label, Screen } from '../ui/components';
@@ -24,15 +25,33 @@ const TEAM_NAMES = [
   'Kitchen Sink',
 ];
 
-const randomName = (exclude: string) => {
-  const pool = TEAM_NAMES.filter((n) => n !== exclude);
+/** Wild mode is couples only, so teams get couple names. */
+const COUPLE_NAMES = [
+  'The Lovebirds',
+  'Dill & Darling',
+  'Sweet & Sour',
+  'Power Couple',
+  'Two Peas in a Pod',
+  'Love All',
+  'Kitchen Crushes',
+  'The Newlyweds',
+  'Dink & Dash',
+  'Pickle Pair',
+  'Soulmates Serve',
+  'Mixed Doubles Trouble',
+];
+
+const randomName = (exclude: string, couples = false) => {
+  const pool = (couples ? COUPLE_NAMES : TEAM_NAMES).filter((n) => n !== exclude);
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
 export function Setup() {
+  const { settings } = useApp();
+  const couples = settings.spice === 'wild';
   const [names, setNames] = useState<[string, string]>(() => {
-    const a = randomName('');
-    return [a, randomName(a)];
+    const a = randomName('', couples);
+    return [a, randomName(a, couples)];
   });
   const [format, setFormat] = useState<Format>('doubles');
   const [scoring, setScoring] = useState<ScoringSystem>('sideout');
@@ -55,7 +74,7 @@ export function Setup() {
     <Screen title="New Match" onBack={goBack}>
       {([0, 1] as Team[]).map((t) => (
         <View key={t} style={{ gap: 6 }}>
-          <Label>Team {t + 1}</Label>
+          <Label>{couples ? 'Couple' : 'Team'} {t + 1}</Label>
           <View style={styles.nameRow}>
             <TextInput
               value={names[t]}
@@ -65,7 +84,7 @@ export function Setup() {
               placeholderTextColor={colors.muted}
               style={[styles.input, { borderColor: teamColors[t] }]}
             />
-            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t]))} />
+            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t], couples))} />
           </View>
         </View>
       ))}

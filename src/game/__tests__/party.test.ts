@@ -3,7 +3,7 @@ import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
 import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
 import { newMatch } from '../scoring';
-import { renderPenalty } from '../spice';
+import { WILD_ACTS, renderPenalty } from '../spice';
 
 const state = newMatch({ format: 'doubles', scoring: 'sideout', target: 11, teamNames: ['Dinkers', 'Bangers'] });
 const zero = () => 0;
@@ -11,7 +11,7 @@ const zero = () => 0;
 describe('renderPenalty', () => {
   it('scales sips by spice', () => {
     expect(renderPenalty('{sips:1}', 'tipsy')).toBe('take 1 sip');
-    expect(renderPenalty('{sips:2}', 'wild')).toBe('take 4 sips');
+    expect(renderPenalty('{sips:2}', 'wild', () => 0)).toBe('take 2 sips, then kiss your partner');
   });
   it('reads as a sentence in every spice level', () => {
     for (const card of CARDS) {
@@ -99,5 +99,22 @@ describe('moments score the rally', () => {
   });
   it('every moment asks a question', () => {
     for (const m of MOMENTS) expect(m.ask).toMatch(/\?$/);
+  });
+});
+
+describe('wild mode (couples)', () => {
+  it('adds one partner act per prompt, on top of the drink', () => {
+    const text = renderPenalty('Miss = {sips:1}, make = everyone else {sips:2}.', 'wild', () => 0);
+    expect(text).toBe('Miss = take 1 sip, then kiss your partner, make = everyone else take 2 sips.');
+    expect(renderPenalty('Pickle Penalty: {finish}.', 'wild', () => 0)).toBe(
+      'Pickle Penalty: take a big gulp, then give your partner a movie-finale dip kiss.',
+    );
+  });
+  it('acts only ever involve your own partner', () => {
+    for (const act of WILD_ACTS) expect(act).toMatch(/your partner/);
+  });
+  it('tipsy and chill never get acts', () => {
+    expect(renderPenalty('{sips:1}', 'tipsy')).toBe('take 1 sip');
+    expect(renderPenalty('{sips:1} {finish}', 'chill', () => 0)).not.toMatch(/partner/);
   });
 });
