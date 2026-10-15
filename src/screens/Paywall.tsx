@@ -134,8 +134,9 @@ export function Paywall({ reason }: { reason: PaywallReason }) {
           </View>
           <Button label={busy ? '…' : 'Continue'} onPress={buy} disabled={busy} />
           <Text style={styles.legal}>
-            Subscriptions renew automatically until cancelled. Cancel anytime in your App Store or Google Play
-            settings at least 24 hours before renewal.
+            {plan === 'lifetime'
+              ? 'Lifetime Pro is a one-time purchase: no subscription, nothing renews.'
+              : 'Subscriptions renew automatically until cancelled. Cancel anytime in your App Store or Google Play settings at least 24 hours before renewal.'}
           </Text>
           <View style={styles.links}>
             <Text style={styles.link} onPress={restore}>

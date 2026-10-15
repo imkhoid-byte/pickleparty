@@ -11,7 +11,7 @@ import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchase
 import { APP_LINK, PACKS_OFFERING, PRO_ENTITLEMENT, REVENUECAT_KEYS, WAITLIST_FORM } from './config';
 import { PACKS, PackId } from './game/cards';
 
-export type PlanId = 'annual' | 'monthly';
+export type PlanId = 'annual' | 'monthly' | 'lifetime';
 
 export interface Plan {
   id: PlanId;
@@ -25,7 +25,10 @@ export interface Plan {
 export const FALLBACK_PLANS: Plan[] = [
   { id: 'annual', title: 'Yearly', price: '$29.99/yr', detail: 'Just $2.50/month', badge: 'SAVE 50%' },
   { id: 'monthly', title: 'Monthly', price: '$4.99/mo', detail: 'Cancel anytime' },
+  { id: 'lifetime', title: 'Lifetime', price: '$39.99', detail: 'Pay once, yours forever. No subscription.' },
 ];
+
+const PRICE_SUFFIX: Record<PlanId, string> = { annual: '/yr', monthly: '/mo', lifetime: '' };
 
 export interface StoreState {
   pro: boolean;
@@ -92,7 +95,11 @@ export async function fetchStoreState(): Promise<StoreState | null> {
 
 async function proPackages(): Promise<Partial<Record<PlanId, PurchasesPackage>>> {
   const offering = (await Purchases.getOfferings()).current;
-  return { annual: offering?.annual ?? undefined, monthly: offering?.monthly ?? undefined };
+  return {
+    annual: offering?.annual ?? undefined,
+    monthly: offering?.monthly ?? undefined,
+    lifetime: offering?.lifetime ?? undefined,
+  };
 }
 
 export async function loadPlans(): Promise<Plan[]> {
@@ -102,8 +109,7 @@ export async function loadPlans(): Promise<Plan[]> {
     return FALLBACK_PLANS.map((plan) => {
       const pkg = pkgs[plan.id];
       if (!pkg) return plan;
-      const suffix = plan.id === 'annual' ? '/yr' : '/mo';
-      return { ...plan, price: `${pkg.product.priceString}${suffix}` };
+      return { ...plan, price: `${pkg.product.priceString}${PRICE_SUFFIX[plan.id]}` };
     });
   } catch {
     return FALLBACK_PLANS;

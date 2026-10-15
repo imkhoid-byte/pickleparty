@@ -26,7 +26,7 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 - **Stats.** Win/loss rankings by team name, with a count of pickles, saved on the device.
 - **Built for sharing.** You can share any result ("…and PICKLED them 🥒💀") or any card straight to the group chat.
 
-### PickleParty Pro (subscription)
+### PickleParty Pro (subscription or lifetime)
 
 - ⚔️ **Crew Stats:** head-to-head rivalries, win streaks, Hall of Shame.
 - 📜 **Unlimited history.** Free players keep every game, but only the latest 10 are visible.
@@ -83,7 +83,7 @@ and a test checks that chill mode never mentions alcohol.
 
 ### The model
 
-| | Free | Pro ($4.99/mo or $29.99/yr) |
+| | Free | Pro ($4.99/mo, $29.99/yr or $39.99 once) |
 | --- | --- | --- |
 | Scorekeeping, party prompts, Classic deck | ✅ forever | ✅ |
 | Game history | latest 10 visible (all saved) | everything |
@@ -93,6 +93,7 @@ and a test checks that chill mode never mentions alcohol.
 - **The free part stays free.** Scoring and the basic party game are how the app spreads, so they're never limited.
 - **14-day reverse trial.** Every new player gets full Pro on day one with no card. When it ends, they keep playing free but lose the crew stats they got used to. That loss is the main reason to subscribe. The app shows one paywall when the trial ends and never interrupts again.
 - **Sneak peeks.** Free players sometimes draw a real card from a locked pack, mid-party, when they're most likely to want more.
+- **Lifetime Pro ($39.99 once)** is for crews who play a few times a month and won't subscribe to a party game. It also makes the yearly plan look like the better deal.
 - **One phone runs the game,** so one organizer's subscription covers their whole crew at their matches.
 
 ### Before payments are live: the waitlist
@@ -109,11 +110,12 @@ That shows whether people actually want Pro before you pay Apple $99.
 
 1. In **App Store Connect**, create:
    - a subscription group with `pickleparty.pro.monthly` ($4.99) and `pickleparty.pro.annual` ($29.99)
+   - a non-consumable in-app purchase `pickleparty.pro.lifetime` ($39.99)
    - non-consumable in-app purchases `pickleparty.pack.kitchen`, `.trickshots`, `.afterdark`, `.halloween` ($2.99) and `.datenight` ($3.99)
 2. In **RevenueCat**:
    - add the app and import those products
-   - create an entitlement named **`pro`** and attach both subscriptions
-   - make the default offering with **Monthly** and **Annual** packages
+   - create an entitlement named **`pro`** and attach both subscriptions and the lifetime product
+   - make the default offering with **Monthly**, **Annual** and **Lifetime** packages
    - make a second offering called **`packs`** with one package per pack, named exactly `kitchen`, `trickshots`, `afterdark`, `halloween`, `datenight`
 3. Put the RevenueCat public keys in EAS (and Netlify, for web payments through Stripe) as environment variables:
    `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `EXPO_PUBLIC_REVENUECAT_WEB_KEY`.
