@@ -99,7 +99,7 @@ export function announce(
   const withSound = opts.sound && prompt.sound !== undefined;
   if (withSound) playSound(prompt.sound!);
   if (!opts.voice) return;
-  const id = opts.announcer ?? 'hype';
+  const id = announcerFor(opts.announcer ?? '').id;
   const { text } = announcerScript(prompt, id);
   if (maleVoice === undefined) findVoices();
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;

@@ -4,7 +4,7 @@
 import type { PartyPrompt, SoundId } from '../game/party';
 import { speechText } from './speechText';
 
-export type AnnouncerId = 'hype' | 'squeaky' | 'bigdill' | 'classic';
+export type AnnouncerId = 'squeaky' | 'bigdill' | 'classic';
 
 export interface Announcer {
   id: AnnouncerId;
@@ -20,16 +20,6 @@ export interface Announcer {
 }
 
 export const ANNOUNCERS: Announcer[] = [
-  {
-    id: 'hype',
-    label: 'Hype',
-    emoji: '🎙️',
-    blurb: 'A big-voiced sports announcer calling every play.',
-    pitch: 0.95,
-    rate: 1.1,
-    male: true,
-    fallbackPitch: 0.75,
-  },
   { id: 'squeaky', label: 'Squeaky Pickle', emoji: '🐿️', blurb: 'A very small, very excited pickle.', pitch: 1.9, rate: 1.1 },
   {
     id: 'bigdill',
@@ -60,27 +50,6 @@ const MOOD: Record<SoundId, Mood> = {
 };
 
 const INTROS: Record<Exclude<AnnouncerId, 'classic'>, Record<Mood, string[]>> = {
-  hype: {
-    hype: [
-      'OHHH, WHAT A SHOT!',
-      'Ladies and gentlemen, are you SEEING this?!',
-      'Can you BELIEVE it, folks?!',
-      'The crowd is on its FEET!',
-      'Put it on the highlight reel!',
-    ],
-    shame: [
-      'Ohhh, folks, that one HURT!',
-      "That's going on the blooper reel!",
-      'Oh, tough break, tough break!',
-      "Somebody check on them, that's ugly!",
-    ],
-    drama: [
-      'Here we go, folks, HERE WE GO!',
-      'You could cut the tension with a paddle!',
-      "It all comes down to this, folks!",
-    ],
-    neutral: ['Back to the action, folks!', "And we're LIVE on court!"],
-  },
   squeaky: {
     hype: ['Wheee!', 'Yippee!', 'Holy pickles!'],
     shame: ['Uh-oh, spaghetti-o!', 'Oopsie daisy!', 'Ouchie!'],
@@ -108,7 +77,8 @@ const PUNS = [
 
 const pick = (items: string[], rng: () => number) => items[Math.floor(rng() * items.length)];
 
-export function announcerFor(id: AnnouncerId): Announcer {
+/** Falls back to the default (first) announcer for unknown ids, e.g. one that was removed. */
+export function announcerFor(id: string): Announcer {
   return ANNOUNCERS.find((a) => a.id === id) ?? ANNOUNCERS[0];
 }
 

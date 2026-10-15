@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
 import { Team } from './game/scoring';
-import type { AnnouncerId } from './audio/personas';
+import { AnnouncerId, announcerFor } from './audio/personas';
 import { Spice } from './game/spice';
 
 export interface Settings {
@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   sound: true,
   voice: true,
-  announcer: 'hype',
+  announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,
   trialEndedPaywallShown: false,
@@ -73,7 +73,9 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 }
 
 export async function loadSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...(await readJson<Partial<Settings>>(SETTINGS_KEY, {})) };
+  const s = { ...DEFAULT_SETTINGS, ...(await readJson<Partial<Settings>>(SETTINGS_KEY, {})) };
+  // An announcer that no longer exists falls back to the default one.
+  return { ...s, announcer: announcerFor(s.announcer).id };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

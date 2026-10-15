@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { ANNOUNCERS, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
+import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
 import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
@@ -126,12 +126,16 @@ describe('announcer personalities', () => {
     expect(announcerScript(prompt, 'classic', () => 0).text).toBe('Net Tax! Lob Squad, take 1 sip.');
   });
   it('characters add a mood-matched intro and sometimes a pun', () => {
-    const s = announcerScript(prompt, 'hype', () => 0);
-    expect(s.text).toBe('Ohhh, folks, that one HURT! Net Tax! Lob Squad, take 1 sip. Brine time!');
+    const s = announcerScript(prompt, 'squeaky', () => 0);
+    expect(s.text).toBe('Uh-oh, spaghetti-o! Net Tax! Lob Squad, take 1 sip. Brine time!');
     expect(announcerScript(prompt, 'squeaky', () => 0).pitch).toBeGreaterThan(1.5);
     expect(announcerScript(prompt, 'bigdill', () => 0).pitch).toBeLessThan(0.7);
     const quiet = announcerScript(prompt, 'bigdill', () => 0.99);
     expect(quiet.text).toBe('Net Tax! Lob Squad, take 1 sip.');
+  });
+  it('Hype is gone; a saved Hype setting falls back to the default', () => {
+    expect(ANNOUNCERS.map((a) => a.id)).toEqual(['squeaky', 'bigdill', 'classic']);
+    expect(announcerFor('hype').id).toBe('squeaky');
   });
   it('every announcer has a voice the phone can do', () => {
     for (const a of ANNOUNCERS) {
@@ -167,10 +171,10 @@ describe('announcer voices', () => {
     ).toBe('Google UK English Male');
     expect(pickMaleVoice([v('Microsoft Zira', 'zira'), v('Thomas', 'fr', 'fr-FR')])).toBeNull();
   });
-  it('Hype uses the male voice, or deepens the default voice when there is none', () => {
-    const hype = ANNOUNCERS.find((a) => a.id === 'hype')!;
-    expect(voiceSettings(hype, 'evan')).toEqual({ voice: 'evan', pitch: 0.95, rate: 1.1 });
-    expect(voiceSettings(hype, null)).toEqual({ pitch: 0.75, rate: 1.1 });
+  it('Big Dill uses a male voice, or deepens the default voice when there is none', () => {
+    const dill = ANNOUNCERS.find((a) => a.id === 'bigdill')!;
+    expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.85 });
+    expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.85 });
     const squeaky = ANNOUNCERS.find((a) => a.id === 'squeaky')!;
     expect(voiceSettings(squeaky, 'evan').voice).toBeUndefined();
   });
