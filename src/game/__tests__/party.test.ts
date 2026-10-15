@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings } from '../../audio/personas';
 import { speechText } from '../../audio/speechText';
-import { CARDS, PACKS, addressCard, cardsForPacks, drawCard } from '../cards';
+import { CARDS, PACKS, addressCard, cardsForPacks, drawCard, packsInSeason } from '../cards';
 import { MOMENTS, momentPrompt, momentRallyWinner, promptForEvents } from '../party';
 import { newMatch } from '../scoring';
 import { WILD_ACTS, renderPenalty } from '../spice';
@@ -187,5 +187,21 @@ describe('announcer voices', () => {
     expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.85 });
     const squeaky = ANNOUNCERS.find((a) => a.id === 'squeaky')!;
     expect(voiceSettings(squeaky, 'evan').voice).toBeUndefined();
+  });
+});
+
+describe('Halloween Bash pack', () => {
+  const cards = CARDS.filter((c) => c.pack === 'halloween');
+  it('is a premium seasonal pack for October with a full deck', () => {
+    const pack = PACKS.find((p) => p.id === 'halloween')!;
+    expect(pack.premium).toBe(true);
+    expect(pack.adult).toBeFalsy();
+    expect(packsInSeason(9).map((p) => p.id)).toContain('halloween');
+    expect(packsInSeason(3).map((p) => p.id)).not.toContain('halloween');
+    expect(cards.length).toBeGreaterThanOrEqual(20);
+    expect(new Set(cards.map((c) => c.kind))).toEqual(new Set(['dare', 'rule', 'trick', 'vote']));
+  });
+  it('stays alcohol-free in chill mode', () => {
+    for (const c of cards) expect(renderPenalty(c.text, 'chill', () => 0)).not.toMatch(/\bsips?\b|gulp/);
   });
 });

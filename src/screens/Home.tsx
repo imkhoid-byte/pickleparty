@@ -5,9 +5,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../AppState';
 import { previewAnnouncer } from '../audio/announcer';
 import { ANNOUNCERS } from '../audio/personas';
+import { packsInSeason } from '../game/cards';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
-import { autoPaywall } from '../monetization/entitlements';
+import { autoPaywall, canUsePack } from '../monetization/entitlements';
 import { openPaywall } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
@@ -37,6 +38,7 @@ export function Home() {
       </View>
 
       <ProBadge />
+      <SeasonalBanner />
 
       <Button label="🏓  Start a Match" onPress={() => router.push('/setup')} />
       <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
@@ -128,6 +130,28 @@ export function Home() {
         <Button label="Keep it Tipsy" variant="ghost" onPress={() => setAskWild(false)} />
       </Takeover>
     </Screen>
+  );
+}
+
+/** Promote a seasonal pack (e.g. Halloween in October) until it's in the deck. */
+function SeasonalBanner() {
+  const { settings, access } = useApp();
+  const [month] = useState(() => new Date().getMonth());
+  const pack = packsInSeason(month).find(
+    (p) => !(settings.activePacks.includes(p.id) && canUsePack(p.id, access, settings.unlockedPacks)),
+  );
+  if (!pack) return null;
+  return (
+    <Pressable
+      onPress={() => router.push('/packs')}
+      style={[styles.badge, { borderColor: colors.orange, backgroundColor: colors.surface }]}
+      accessibilityRole="button"
+    >
+      <Text style={styles.badgeText}>
+        {pack.emoji} New: the {pack.name} pack is here!
+      </Text>
+      <Text style={[styles.badgeText, { color: colors.orange }]}>Get it →</Text>
+    </Pressable>
   );
 }
 

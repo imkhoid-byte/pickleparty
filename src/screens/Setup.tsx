@@ -41,17 +41,36 @@ const COUPLE_NAMES = [
   'Mixed Doubles Trouble',
 ];
 
-const randomName = (exclude: string, couples = false) => {
-  const pool = (couples ? COUPLE_NAMES : TEAM_NAMES).filter((n) => n !== exclude);
+/** Used when the Halloween pack is in the deck. */
+const SPOOKY_NAMES = [
+  'The Dink Dead',
+  'Boo Crew',
+  'Ghouls Gone Wild',
+  'Skeleton Crew',
+  'Pumpkin Smashers',
+  'Kitchen Creepers',
+  'Night of the Living Dinks',
+  'Hocus Paddle-us',
+  'The Ghostbangers',
+  'Bat Out of the Kitchen',
+];
+
+type NameStyle = 'teams' | 'couples' | 'spooky';
+
+const randomName = (exclude: string, style: NameStyle = 'teams') => {
+  const list = style === 'couples' ? COUPLE_NAMES : style === 'spooky' ? SPOOKY_NAMES : TEAM_NAMES;
+  const pool = list.filter((n) => n !== exclude);
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
 export function Setup() {
-  const { settings } = useApp();
+  const { settings, deck } = useApp();
   const couples = settings.spice === 'wild';
+  // Couples mode wins; otherwise go spooky when the Halloween pack is in play.
+  const style: NameStyle = couples ? 'couples' : deck.some((c) => c.pack === 'halloween') ? 'spooky' : 'teams';
   const [names, setNames] = useState<[string, string]>(() => {
-    const a = randomName('', couples);
-    return [a, randomName(a, couples)];
+    const a = randomName('', style);
+    return [a, randomName(a, style)];
   });
   const [format, setFormat] = useState<Format>('doubles');
   const [scoring, setScoring] = useState<ScoringSystem>('sideout');
@@ -84,7 +103,7 @@ export function Setup() {
               placeholderTextColor={colors.muted}
               style={[styles.input, { borderColor: teamColors[t] }]}
             />
-            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t], couples))} />
+            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t], style))} />
           </View>
         </View>
       ))}

@@ -1,6 +1,6 @@
 // Card decks. Text may use {sips:N} and {finish}; see spice.ts.
 
-export type PackId = 'classic' | 'kitchen' | 'trickshots' | 'afterdark' | 'datenight' | 'custom';
+export type PackId = 'classic' | 'kitchen' | 'trickshots' | 'afterdark' | 'datenight' | 'halloween' | 'custom';
 export type CardKind = 'dare' | 'rule' | 'trick' | 'vote';
 
 export interface Card {
@@ -20,6 +20,8 @@ export interface Pack {
   price?: string;
   /** Only offered to players who passed the 21+ gate, and needs couples to opt in. */
   adult?: boolean;
+  /** Seasonal packs get a badge, and a home-screen banner during these months (0 = January). */
+  season?: { badge: string; months: number[] };
 }
 
 export const PACKS: Pack[] = [
@@ -27,6 +29,15 @@ export const PACKS: Pack[] = [
   { id: 'kitchen', name: 'Kitchen Nightmares', emoji: '🔥', description: 'Spicier dares and chaotic house rules.', premium: true, price: '$2.99' },
   { id: 'trickshots', name: 'Trick Shot Tour', emoji: '🎯', description: 'Behind-the-back, ernes, ATPs. Film everything.', premium: true, price: '$2.99' },
   { id: 'afterdark', name: 'After Dark', emoji: '🌙', description: 'For the 4th game when nobody is keeping score.', premium: true, price: '$2.99' },
+  {
+    id: 'halloween',
+    name: 'Halloween Bash',
+    emoji: '🎃',
+    description: 'Zombie walks, mummy rallies, trick-or-treat dares and costume votes.',
+    premium: true,
+    price: '$2.99',
+    season: { badge: '🎃 Limited time', months: [9] },
+  },
   {
     id: 'datenight',
     name: 'Date Night',
@@ -128,6 +139,37 @@ export const CARDS: Card[] = [
     'VOTE: Which couple would survive a mixed-doubles tournament together? The other couple {sips:2}.',
     'VOTE: Which couple argues most about line calls? They kiss and make up, or {sips:2}.',
   ]),
+  // Halloween Bash: seasonal pack.
+  ...c('halloween', 'dare', [
+    'Zombie walk to the baseline before your next serve. Too lively? {sips:1}.',
+    'Serve your next point with your best vampire laugh. Fault and {sips:1}.',
+    'Monster dance-off: 10 seconds, everyone watching. The group picks the weakest monster: {sips:1}.',
+    'Speak only in spooky whispers until you win a rally. Every rally you lose: {sips:1}.',
+    'Play the next rally as a mummy: stiff arms, locked elbows. Lose it and {sips:1}.',
+    'Trick or treat! Your opponents choose: a treat ({sips:2}) or a trick (play the next rally with your off hand).',
+    'Howl at the moon (or the court lights) before your next serve. Too quiet? {sips:1}.',
+    'Pick a costume character and stay in character until the next side out. Break character and {sips:1}.',
+    'Ghost serve: serve with your eyes closed. Miss it and {sips:1}.',
+    'Tell the scariest story you can in 15 seconds. If the group votes it not scary: {sips:2}.',
+    'Cast a spell on an opponent: they hop on one foot for the next rally. If your spell fails (you lose the rally): {sips:1}.',
+  ]),
+  ...c('halloween', 'rule', [
+    'HOUSE RULE: Every time the ball hits the net, everyone yells "BOO!" Last one to yell: {sips:1}.',
+    'HOUSE RULE: Anyone in costume is immune to one penalty this game.',
+    'HOUSE RULE: Call the score in your creepiest voice. Normal voice: {sips:1}.',
+    'HOUSE RULE: Lobs are now ghost balls. Win a rally with one and pick someone to {sips:1}.',
+    'HOUSE RULE: The team that loses a rally does a zombie groan. Forget it and {sips:1}.',
+  ]),
+  ...c('halloween', 'trick', [
+    'TRICK SHOT: The Headless Rider: hit a shot with your hat pulled over your eyes. Land it and the other team must {sips:2}.',
+    'TRICK SHOT: Pumpkin drop: a drop shot that dies in the kitchen. Nail it and the other team must {sips:2}.',
+  ]),
+  ...c('halloween', 'vote', [
+    'VOTE: Best costume on court. Everyone else {sips:1}.',
+    'VOTE: Who would be first to go in a horror movie? They {sips:2}.',
+    'VOTE: Who is secretly a vampire (never seen before noon)? They {sips:1}.',
+    'VOTE: Who screams loudest on a haunted hayride? They {sips:1}.',
+  ]),
 ];
 
 export function cardsForPacks(packs: PackId[]): Card[] {
@@ -173,4 +215,9 @@ export function drawCard(
 /** Dares and trick shots go to a specific team so everyone knows who's up. */
 export function addressCard(text: string, kind: CardKind, who: string | null): string {
   return who && (kind === 'dare' || kind === 'trick') ? `${who}: ${text}` : text;
+}
+
+/** Seasonal packs to promote this month (0 = January). */
+export function packsInSeason(month: number): Pack[] {
+  return PACKS.filter((p) => p.season?.months.includes(month));
 }

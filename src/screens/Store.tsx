@@ -73,6 +73,7 @@ export function Store() {
               <Text style={{ fontSize: 40 }}>{p.emoji}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{p.name}</Text>
+                {p.season && <Text style={styles.season}>{p.season.badge}</Text>}
                 <Text style={styles.desc}>{p.description}</Text>
                 {p.premium && canUse && !owned(p.id) && (
                   <Text style={styles.tag}>{access.source === 'trial' ? 'Included in your trial' : 'Included with Pro'}</Text>
@@ -135,6 +136,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 6 },
   name: { color: colors.text, fontSize: 20, fontWeight: '900' },
   desc: { color: colors.muted, fontSize: 14, marginTop: 2 },
+  season: { color: colors.orange, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginTop: 2 },
   tag: { color: colors.orange, fontSize: 12, fontWeight: '800', marginTop: 4 },
   message: { color: colors.pickle, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 });

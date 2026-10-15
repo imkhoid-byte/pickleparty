@@ -31,7 +31,7 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 - 📜 **Unlimited history.** Free players keep every game, but only the latest 10 are visible.
 - 📣 **Recap cards:** a weekly brag sheet to post in the group chat.
 - 🏟️ **Round Robin:** runs open play with rotating partners, fair sit-outs and live standings.
-- 🃏 **Every Party Pack:** *Kitchen Nightmares*, *Trick Shot Tour*, *After Dark*, *Date Night* and future drops.
+- 🃏 **Every Party Pack:** *Kitchen Nightmares*, *Trick Shot Tour*, *After Dark*, *Date Night*, seasonal packs like 🎃 *Halloween Bash*, and future drops.
 - ✏️ **Custom cards:** your crew's inside jokes, shuffled into the deck.
 
 💋 **Date Night** (21+ only) is a couples pack. Every dare involves only your own partner, everyone has to opt in each time it's switched on, and any card can be passed.
@@ -62,6 +62,8 @@ src/purchases.ts               payments via RevenueCat, plus the waitlist
 src/config.ts                  links, payment keys, product ids
 public/                        privacy policy, terms, waitlist form (served on the website)
 ```
+
+Seasonal packs: give a pack a `season` (badge + months) in `PACKS` and it gets a "limited time" badge and a home-screen banner in those months. 🎃 *Halloween Bash* runs in October; when it's in the deck, random team names turn spooky ("The Dink Dead", "Boo Crew").
 
 Adding content is easy: append strings to `CARDS` in `src/game/cards.ts`. Use `{sips:N}`
 for a penalty and `{finish}` for the big one. Chill mode rewrites both automatically,
@@ -105,12 +107,12 @@ That shows whether people actually want Pro before you pay Apple $99.
 
 1. In **App Store Connect**, create:
    - a subscription group with `pickleparty.pro.monthly` ($4.99) and `pickleparty.pro.annual` ($29.99)
-   - non-consumable in-app purchases `pickleparty.pack.kitchen`, `.trickshots`, `.afterdark` ($2.99) and `.datenight` ($3.99)
+   - non-consumable in-app purchases `pickleparty.pack.kitchen`, `.trickshots`, `.afterdark`, `.halloween` ($2.99) and `.datenight` ($3.99)
 2. In **RevenueCat**:
    - add the app and import those products
    - create an entitlement named **`pro`** and attach both subscriptions
    - make the default offering with **Monthly** and **Annual** packages
-   - make a second offering called **`packs`** with one package per pack, named exactly `kitchen`, `trickshots`, `afterdark`, `datenight`
+   - make a second offering called **`packs`** with one package per pack, named exactly `kitchen`, `trickshots`, `afterdark`, `halloween`, `datenight`
 3. Put the RevenueCat public keys in EAS (and Netlify, for web payments through Stripe) as environment variables:
    `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `EXPO_PUBLIC_REVENUECAT_WEB_KEY`.
 4. Build with `npx eas-cli@latest build --profile preview` and test with a Sandbox account. Purchases don't work in Expo Go; there, RevenueCat runs in a preview mode.

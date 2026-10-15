@@ -118,12 +118,12 @@ export function unlockAudio() {
       silent.volume = 0;
       synth.speak(silent);
     }
-    // Start and stop each sound silently so it may play later.
+    // Play each sound once, muted, so it may play later. (No pause: pausing a
+    // play() that hasn't started yet makes browsers reject it with an error.)
     (Object.keys(SOURCES) as SoundId[]).forEach((id) => {
       const player = playerFor(id);
       player.muted = true;
       player.play();
-      player.pause();
     });
   } catch {
     // ignore
