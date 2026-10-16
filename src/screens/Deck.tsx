@@ -21,12 +21,12 @@ const KIND_STYLE: Record<CardKind, { label: string; color: string }> = {
 };
 
 export function Deck() {
-  const { settings, deck, lockedCards, access } = useApp();
+  const { settings, deck, courtRules, lockedCards, access } = useApp();
   const [drawn, setDrawn] = useState<{ card: Card; text: string; locked: boolean } | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
   // Court Rules only: play it like a card deck, keeping score yourselves.
   const [courtOnly, setCourtOnly] = useState(false);
-  const pool = courtOnly ? deck.filter((c) => c.kind === 'court') : deck;
+  const pool = courtOnly ? courtRules : deck;
   const lockedPool = courtOnly ? lockedCards.filter((c) => c.kind === 'court') : lockedCards;
   const [flip] = useState(() => new Animated.Value(1));
 

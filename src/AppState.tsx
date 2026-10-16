@@ -1,8 +1,8 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { Card, PACKS, PackId, cardsForPacks, customCards } from './game/cards';
+import { CARDS, Card, PACKS, PackId, cardsForPacks, customCards } from './game/cards';
 import { RRLink, RRSession, recordResult } from './game/roundRobin';
-import { Access, computeAccess, usablePacks } from './monetization/entitlements';
+import { Access, canUsePack, computeAccess, usablePacks } from './monetization/entitlements';
 import { StoreState, fetchStoreState } from './purchases';
 import {
   DEFAULT_SETTINGS,
@@ -25,6 +25,13 @@ interface AppState {
   access: Access;
   /** Cards the group can draw right now. */
   deck: Card[];
+  /**
+   * Court Rules for Chaos Rules: every one this player can use, whichever packs are
+   * switched on for the card deck (Chaos Rules is its own switch).
+   */
+  courtRules: Card[];
+  /** House rules: from the active packs, or Classic's if none of them have any. */
+  houseRules: Card[];
   /** Cards from premium packs this player doesn't have (for teasers). Never adult packs. */
   lockedCards: Card[];
   updateSettings: (patch: Partial<Settings>) => void;
@@ -121,6 +128,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return { deck: cards, lockedCards: cardsForPacks(lockedPacks) };
   }, [settings, access]);
 
+  const { courtRules, houseRules } = useMemo(() => {
+    const adultOk = settings.ageConfirmed && settings.dateNightConsent;
+    const allowed = (pack: PackId) =>
+      canUsePack(pack, access, settings.unlockedPacks) && (!PACKS.find((p) => p.id === pack)?.adult || adultOk);
+    const rules = deck.filter((c) => c.kind === 'rule');
+    return {
+      courtRules: CARDS.filter((c) => c.kind === 'court' && allowed(c.pack)),
+      houseRules: rules.length > 0 ? rules : cardsForPacks(['classic']).filter((c) => c.kind === 'rule'),
+    };
+  }, [settings, access, deck]);
+
   const recordGame = useCallback((record: GameRecord) => {
     setHistory((prev) => [record, ...prev]);
     setNow(Date.now());
@@ -153,6 +171,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         history,
         access,
         deck,
+        courtRules,
+        houseRules,
         lockedCards,
         updateSettings,
         recordGame,

@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router, useIsFocused } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -102,19 +102,19 @@ export function Match({
   /** Set when this game is one court's game in a round robin. */
   roundRobin?: RRLink;
 }) {
-  const { settings, updateSettings, recordGame, deck, lockedCards, access, history, reportRoundRobin } = useApp();
+  const { settings, updateSettings, recordGame, deck, courtRules, houseRules, lockedCards, access, history, reportRoundRobin } =
+    useApp();
   useScreenAwake();
   const sun = settings.sunlight;
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
-  const rules = useMemo(() => deck.filter((c) => c.kind === 'rule'), [deck]);
+  const rules = houseRules;
   const [match, setMatch] = useState(() => newMatch(config, firstServer));
   const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
 
   // Chaos Rules: a Court Rule (instead of the house rule) that changes every few points.
   const chaos = settings.chaos;
-  const courtRules = useMemo(() => deck.filter((c) => c.kind === 'court'), [deck]);
   const [courtRule, setCourtRule] = useState<PartyCard | null>(() => (chaos ? drawCard(courtRules) : null));
   const [pendingBreak, setPendingBreak] = useState(false);
   // A match started from the setup screen can open with a water break.
@@ -411,12 +411,8 @@ export function Match({
         })}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={styles.moments}
-      >
+      {/* Every moment visible at once, 4 to a row: nothing to scroll for mid-game. */}
+      <View style={styles.moments}>
         {chaos && courtRule && (
           <Pressable
             onPress={() => {
@@ -446,7 +442,7 @@ export function Match({
             <Text style={[styles.momentText, sun && styles.sunMomentText]}>{m.label}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
       <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
         <Button label="🃏  Draw a Party Card" variant="pink" onPress={onDraw} />
@@ -625,16 +621,17 @@ const styles = StyleSheet.create({
   teamName: { fontSize: 24, fontWeight: '900' },
   serveTag: { color: colors.muted, fontSize: 13, fontWeight: '600', marginTop: 4 },
   score: { fontSize: 96, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  moments: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  moments: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   moment: {
+    flexBasis: '22%',
+    flexGrow: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    minWidth: 78,
   },
-  momentText: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  momentText: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'center' },
   resultHero: { alignSelf: 'stretch', alignItems: 'center', gap: 10 },
   wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   resultRow: { flexDirection: 'row', gap: 10 },
