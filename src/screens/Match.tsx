@@ -34,6 +34,7 @@ import { shareImage } from '../shareImage';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
 import { LosersWheel } from '../ui/LosersWheel';
+import { PromptCard } from '../ui/PromptCard';
 import { ResultCard } from '../ui/ResultCard';
 import { colors, radius, teamColors } from '../ui/theme';
 import { useScreenAwake } from '../ui/useScreenAwake';
@@ -79,9 +80,9 @@ function pendingWaterBreak(history: GameRecord[]): string | null {
 type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 
 /**
- * Everyday prompts (side-outs, moments, heaters…) show as a banner that never
- * blocks scoring, so nobody has to walk over to dismiss it. Cards and the big
- * game-ending moments still take over the screen: everyone's looking then anyway.
+ * Everyday prompts (side-outs, moments, heaters…) show as a big card that closes
+ * on its own once it's been read out, so nobody has to walk over to dismiss it.
+ * Cards and the game-ending moments stay up until someone taps.
  */
 const isBanner = (p: Shown) => !p.card && !p.big;
 
@@ -372,20 +373,6 @@ export function Match({
       <Text style={styles.call} accessibilityLabel={`Score ${callScore(match)}`}>
         {callScore(match)}
       </Text>
-      {focused && prompt && isBanner(prompt) && (
-        <Pressable
-          onPress={() => setPrompt(null)}
-          accessibilityRole="button"
-          accessibilityHint="Dismiss"
-          style={[styles.banner, { borderColor: colors.pickle }]}
-        >
-          <Text style={styles.bannerTitle}>
-            {prompt.emoji} {prompt.title}
-          </Text>
-          <Text style={styles.bannerBody}>{prompt.body}</Text>
-          {spice === 'wild' && <Text style={styles.bannerFoot}>Not feeling the act? Skip it, no questions asked.</Text>}
-        </Pressable>
-      )}
       </View>
 
       <View style={styles.courts}>
@@ -575,6 +562,16 @@ export function Match({
           </View>
         </Takeover>
       )}
+      {focused && prompt && isBanner(prompt) && (
+        <PromptCard
+          emoji={prompt.emoji}
+          title={prompt.title}
+          body={prompt.body}
+          footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
+          duration={bannerTime(prompt)}
+          onClose={() => setPrompt(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -642,24 +639,6 @@ const styles = StyleSheet.create({
   wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   resultRow: { flexDirection: 'row', gap: 10 },
   top: { zIndex: 10, elevation: 10 },
-  banner: {
-    position: 'absolute',
-    top: 0,
-    left: 16,
-    right: 16,
-    minHeight: '100%',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceHi,
-    borderRadius: radius.md,
-    borderWidth: 3,
-    padding: 14,
-    gap: 4,
-    zIndex: 10,
-    elevation: 10,
-  },
-  bannerTitle: { color: colors.pickle, fontSize: 20, fontWeight: '900' },
-  bannerBody: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 24 },
-  bannerFoot: { color: colors.muted, fontSize: 12, marginTop: 4 },
   // Sunlight mode: pure black, brighter and bigger text, so it reads outdoors at noon.
   sunBg: { backgroundColor: '#000000' },
   sunSurface: { backgroundColor: '#111111' },
