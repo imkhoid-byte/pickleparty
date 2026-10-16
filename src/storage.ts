@@ -20,6 +20,8 @@ export interface Settings {
   sound: boolean;
   /** Read penalties out loud with the team names. */
   voice: boolean;
+  /** The announcer also calls the score and who's serving after every rally. */
+  scoreCalls: boolean;
   /** High-contrast match screen for playing outdoors. */
   sunlight: boolean;
   /** Calm mode: only the big moments interrupt the game. */
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   sound: true,
   voice: true,
+  scoreCalls: true,
   sunlight: false,
   calm: false,
   chaos: false,

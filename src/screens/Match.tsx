@@ -6,8 +6,9 @@ import { captureRef } from 'react-native-view-shot';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '../AppState';
-import { announce, hush, playSound } from '../audio/announcer';
+import { announce, announceLine, hush, playSound } from '../audio/announcer';
 import { APP_LINK, HASHTAG } from '../config';
+import { scoreCallout, spokenScore } from '../game/callout';
 import { CARD_KIND_LABEL, Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
 import {
   MOMENTS,
@@ -61,6 +62,12 @@ function gameRecord(s: MatchState): GameRecord {
 
 /** The game that last triggered a water break, so one break is only shown once. */
 let lastWaterBreak: string | null = null;
+/** Remember which game's water break has been shown. */
+const markWaterBreak = (id: string | null) => {
+  if (id) lastWaterBreak = id;
+};
+/** 0 or 1 at random (who gets a card when nobody has lost a rally yet). */
+const coinFlip = (): Team => (Math.random() < 0.5 ? 0 : 1);
 
 /** The game id a water break is due for (every two games), if it hasn't been shown yet. */
 function pendingWaterBreak(history: GameRecord[]): string | null {
@@ -134,10 +141,14 @@ export function Match({
   const audioOn = settings.sound || settings.voice;
 
   /** Show a prompt and announce it out loud. */
-  const show = (p: Shown) => {
+  const voice = { voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) };
+  /** Show a prompt and announce it, then say `tail` (the score call) last. */
+  const show = (p: Shown, tail?: string) => {
     setPrompt(p);
-    announce(p, { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) });
+    announce(p, { ...voice, sound: settings.sound, tail });
   };
+  /** The score call, if the announcer calls the score. */
+  const callout = (text: string) => (settings.scoreCalls ? text : '');
   const toggleAudio = () => {
     if (audioOn) hush();
     updateSettings({ sound: !audioOn, voice: !audioOn });
@@ -152,11 +163,15 @@ export function Match({
     return () => clearTimeout(timer);
   }, [prompt]);
 
-  // Announce an opening water break.
+  // Open the game: who serves first and "0, 0, start" (after a water break, if one is due).
   useEffect(() => {
-    if (prompt !== WATER_BREAK) return;
-    lastWaterBreak = pendingWaterBreak(history) ?? lastWaterBreak;
-    announce(WATER_BREAK, { sound: settings.sound, voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) });
+    const start = callout(scoreCallout(null, match));
+    if (prompt !== WATER_BREAK) {
+      announceLine(start, voice);
+      return;
+    }
+    markWaterBreak(pendingWaterBreak(history));
+    announce(WATER_BREAK, { ...voice, sound: settings.sound, tail: start });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -179,9 +194,15 @@ export function Match({
       if (rule) rulePrompt = courtRulePrompt(rule.text, spice);
     }
     const next = p?.big ? p : (moment ?? rulePrompt ?? p);
-    if (next) show(next);
-    // Play has moved on: an old banner would now be out of date.
-    else if (prompt && isBanner(prompt)) setPrompt(null);
+    // Then the score, as players would call it before the next serve.
+    const tail = callout(scoreCallout(match, state, next?.title === 'Side Out'));
+    // After a prompt, bare numbers would run on from the penalty, so label them.
+    if (next) show(next, /^\d/.test(tail) ? `Score: ${tail}` : tail);
+    else {
+      announceLine(tail, voice);
+      // Play has moved on: an old banner would now be out of date.
+      if (prompt && isBanner(prompt)) setPrompt(null);
+    }
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
@@ -200,7 +221,7 @@ export function Match({
     const { card, locked } = drawn;
     setRecent((r) => [card.id, ...r].slice(0, 12));
     const pack = PACKS.find((p) => p.id === card.pack);
-    const who = names[lastLoser ?? (Math.random() < 0.5 ? 0 : 1)];
+    const who = names[lastLoser ?? coinFlip()];
     show({
       emoji: locked ? '🔒' : '🃏',
       title: locked ? `Sneak peek: ${pack?.name}` : CARD_KIND_LABEL[card.kind],
@@ -252,14 +273,19 @@ export function Match({
   const rematch = () => {
     resetBetweenGames();
     const loser = match.winner === null ? firstServer : other(match.winner);
-    setMatch(newMatch(config, loser));
+    const fresh = newMatch(config, loser);
+    setMatch(fresh);
+    const start = callout(scoreCallout(null, fresh));
     setHouseRule(drawCard(rules, houseRule ? [houseRule.id] : []));
     if (chaos) setCourtRule(newCourtRule());
     const due = pendingWaterBreak(history);
     if (due) {
-      lastWaterBreak = due;
-      show(WATER_BREAK);
-    } else setPrompt(null);
+      markWaterBreak(due);
+      show(WATER_BREAK, start);
+    } else {
+      setPrompt(null);
+      announceLine(start, voice);
+    }
   };
 
   const subtitle = `${config.format === 'doubles' ? 'Doubles' : 'Singles'} · to ${config.target} · ${
@@ -297,7 +323,13 @@ export function Match({
             // Undoing the winning point takes the result back out of the round robin too.
             if (roundRobin && match.winner !== null) reportRoundRobin(roundRobin, config.teamNames, null);
             resetBetweenGames();
-            setMatch(undo(match));
+            const previous = undo(match);
+            setMatch(previous);
+            // Say the corrected score, so everyone knows the mis-tap was fixed.
+            announceLine(
+              callout(`Undo. ${names[previous.servingTeam]} serving. ${spokenScore(previous)}`),
+              voice,
+            );
           }}
           disabled={match.history.length === 0}
           hitSlop={12}

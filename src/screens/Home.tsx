@@ -82,6 +82,13 @@ export function Home() {
       <View style={styles.row}>
         <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
         <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
+        {settings.voice && (
+          <Chip
+            label="🔢 Calls the score"
+            selected={settings.scoreCalls}
+            onPress={() => updateSettings({ scoreCalls: !settings.scoreCalls })}
+          />
+        )}
       </View>
       {settings.voice && (
         <View style={styles.row}>
@@ -106,7 +113,9 @@ export function Home() {
       )}
       <Text style={styles.muted}>
         {settings.voice
-          ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out penalties by team name. Tap one to hear it.`
+          ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out penalties by team name${
+              settings.scoreCalls ? ', then the score and who is serving after every rally' : ''
+            }. Tap one to hear it.`
           : 'Calls out penalties by team name, so nobody has to check the phone.'}
       </Text>
       {!settings.ageConfirmed && (

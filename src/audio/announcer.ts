@@ -143,20 +143,35 @@ export function hush() {
 
 export function announce(
   prompt: PartyPrompt,
-  opts: { sound: boolean; voice: boolean; announcer?: AnnouncerId },
+  opts: {
+    sound: boolean;
+    voice: boolean;
+    announcer?: AnnouncerId;
+    /** Said last, plainly (e.g. the score), so it's what players hear as they get ready to serve. */
+    tail?: string;
+  },
 ) {
   hush();
   const withSound = opts.sound && prompt.sound !== undefined;
   if (withSound) playSound(prompt.sound!);
   if (!opts.voice) return;
   const id = announcerFor(opts.announcer ?? '').id;
-  const { text, pitchScale } = announcerScript(prompt, id);
+  const script = announcerScript(prompt, id);
+  const text = opts.tail ? `${script.text} ${opts.tail}` : script.text;
+  const { pitchScale } = script;
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {
     pendingVoice = null;
     const v = settingsFor(id);
     speak(text, { ...v, pitch: Math.min(2, v.pitch * pitchScale) });
   }, delay);
+}
+
+/** Say one plain line in the announcer's voice, with no sound effect (e.g. just the score). */
+export function announceLine(text: string, opts: { voice: boolean; announcer?: AnnouncerId }) {
+  if (!opts.voice || !text) return;
+  hush();
+  speak(text, settingsFor(announcerFor(opts.announcer ?? '').id));
 }
 
 /**
