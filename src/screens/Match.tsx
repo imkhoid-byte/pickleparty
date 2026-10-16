@@ -279,7 +279,9 @@ export function Match({
           accessibilityLabel={audioOn ? 'Mute announcer' : 'Turn on announcer'}
           style={styles.subtitleRow}
         >
-          <Text style={[styles.subtitle, sun && styles.sunMuted]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, sun && styles.sunMuted]} numberOfLines={1}>
+            {subtitle}
+          </Text>
           <Text style={styles.speaker}>{audioOn ? '🔊' : '🔇'}</Text>
         </Pressable>
         <Pressable
@@ -305,7 +307,8 @@ export function Match({
         </Pressable>
       </View>
 
-      <View>
+      {/* Above the team buttons, so a long banner can spill over them and stay readable. */}
+      <View style={styles.top}>
       {chaos && courtRule ? (
         <Pressable
           style={[styles.rule, styles.courtRule, sun && styles.sunSurface]}
@@ -550,12 +553,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   headerBtn: { color: colors.muted, fontSize: 16, fontWeight: '700' },
-  subtitle: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  subtitle: { color: colors.muted, fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   speaker: { fontSize: 18 },
   rule: {
     marginHorizontal: 16,
@@ -605,6 +609,7 @@ const styles = StyleSheet.create({
   resultHero: { alignSelf: 'stretch', alignItems: 'center', gap: 10 },
   wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   resultRow: { flexDirection: 'row', gap: 10 },
+  top: { zIndex: 10, elevation: 10 },
   banner: {
     position: 'absolute',
     top: 0,
