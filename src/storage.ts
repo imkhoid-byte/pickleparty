@@ -107,6 +107,11 @@ export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
 }
 
+/** Replace the saved games (deleting one, or undoing a delete). */
+export async function saveHistory(history: GameRecord[]): Promise<void> {
+  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+}
+
 /** The open-play round robin in progress, if any. */
 export async function loadRoundRobin(): Promise<RRSession | null> {
   const s = await readJson<RRSession | null>(ROUND_ROBIN_KEY, null);

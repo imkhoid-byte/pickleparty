@@ -26,7 +26,7 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
   - 🍺 **Tipsy**: sips, and a Pickle Penalty for getting shut out. Unlocked only after the 21+ age gate.
   - 🔥 **Wild** (couples only, 21+): every penalty is a drink plus a flirty act with your own partner ("take 1 sip, then give your partner a 5-second kiss"). Choosing it asks everyone to opt in, teams get couple names, and every prompt reminds players they can skip an act. Acts live in `WILD_ACTS` in `src/game/spice.ts`.
 - **Party Deck.** Dares, trick shots, house rules and group votes, playable anytime (on or off the court).
-- **Stats.** Win/loss rankings by team name, with a count of pickles, saved on the device.
+- **Stats.** Win/loss rankings by team name, with a count of pickles, saved on the device. Tap a game to see it or delete it (a test game, or one scored by mistake); *Clear all games* asks first. Every delete can be undone until you leave the screen.
 - **Built for sharing.** You can share any result ("…and PICKLED them 🥒💀") or any card straight to the group chat.
 
 ### PickleParty Pro (subscription or lifetime)

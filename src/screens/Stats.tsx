@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { APP_LINK, HASHTAG } from '../config';
@@ -7,31 +7,62 @@ import { recap, recapText, rivalries, streaks } from '../game/crew';
 import { leaderboard } from '../game/stats';
 import { visibleHistory } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
-import { Button, Card, Label, Screen } from '../ui/components';
+import type { GameRecord } from '../storage';
+import { Button, Card, Label, Screen, Takeover } from '../ui/components';
 import { colors } from '../ui/theme';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** "Thu, Oct 15 · 6:42 PM" */
+const playedOn = (date: number) =>
+  new Date(date).toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
 export function Stats() {
-  const { history, resetHistory, access } = useApp();
+  const { history, resetHistory, deleteGame, restoreHistory, access } = useApp();
   const board = leaderboard(history);
   const { shown, hidden } = visibleHistory(history, access);
 
-  const confirmReset = () => {
-    if (Platform.OS === 'web') {
-      resetHistory();
-      return;
-    }
-    Alert.alert('Clear all games?', 'This wipes your stats for good.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: resetHistory },
-    ]);
+  // Tapping a game opens it, with the option to delete it. Every delete can be undone
+  // until you leave this screen.
+  const [selected, setSelected] = useState<GameRecord | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [undo, setUndo] = useState<{ games: GameRecord[]; message: string } | null>(null);
+
+  const removeGame = (g: GameRecord) => {
+    setUndo({ games: history, message: 'Game deleted.' });
+    deleteGame(g.id);
+    setSelected(null);
   };
+  const clearAll = () => {
+    setUndo({ games: history, message: `All ${history.length} games cleared.` });
+    resetHistory();
+    setConfirmClear(false);
+  };
+  const undoBar = undo && (
+    <Pressable
+      onPress={() => {
+        restoreHistory(undo.games);
+        setUndo(null);
+      }}
+      accessibilityRole="button"
+      style={styles.undo}
+    >
+      <Text style={styles.undoText}>{undo.message}</Text>
+      <Text style={styles.undoAction}>↶ Undo</Text>
+    </Pressable>
+  );
 
   if (history.length === 0) {
     return (
       <Screen title="Stats" onBack={goBack}>
+        {undoBar}
         <Card style={{ alignItems: 'center', paddingVertical: 40 }}>
           <Text style={{ fontSize: 60 }}>🏆</Text>
           <Text style={styles.empty}>No games yet. Go get pickled.</Text>
@@ -61,17 +92,25 @@ export function Stats() {
       {access.isPro ? <CrewStats /> : <LockedCrewStats />}
 
       <Label>Recent games</Label>
+      {undoBar}
+      <Text style={styles.hint}>Tap a game to see it or remove it.</Text>
       <Card>
         {shown.slice(0, 50).map((g) => (
-          <View key={g.id} style={styles.row}>
+          <Pressable
+            key={g.id}
+            style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+            onPress={() => setSelected(g)}
+            accessibilityRole="button"
+            accessibilityHint="Shows the game, with an option to delete it"
+          >
             <Text style={styles.game} numberOfLines={1}>
               {g.pickled ? '🥒 ' : ''}
               <Text style={{ color: colors.pickle }}>{g.teamNames[g.winner]}</Text> def. {g.teamNames[1 - g.winner]}
             </Text>
             <Text style={styles.record}>
-              {g.scores[g.winner]}-{g.scores[1 - g.winner]}
+              {g.scores[g.winner]}-{g.scores[1 - g.winner]} ›
             </Text>
-          </View>
+          </Pressable>
         ))}
         {hidden > 0 && (
           <Pressable onPress={() => openPaywall('history')} accessibilityRole="button">
@@ -81,7 +120,30 @@ export function Stats() {
           </Pressable>
         )}
       </Card>
-      <Button label="Clear history" variant="ghost" small onPress={confirmReset} />
+      <Button label="🗑️ Clear all games" variant="ghost" small onPress={() => setConfirmClear(true)} />
+
+      <Takeover
+        visible={selected !== null}
+        emoji={selected?.pickled ? '🥒' : '🏆'}
+        title={selected ? `${selected.teamNames[selected.winner]} ${selected.pickled ? 'pickled' : 'beat'} ${selected.teamNames[1 - selected.winner]}` : ''}
+        body={selected ? `${selected.scores[selected.winner]} – ${selected.scores[1 - selected.winner]} · ${selected.rallies} rallies\n${playedOn(selected.date)}` : ''}
+        onClose={() => setSelected(null)}
+      >
+        <Button label="Keep it" onPress={() => setSelected(null)} />
+        <Button label="🗑️ Delete this game" variant="ghost" onPress={() => selected && removeGame(selected)} />
+      </Takeover>
+
+      <Takeover
+        visible={confirmClear}
+        emoji="🗑️"
+        title={`Clear all ${history.length} game${history.length === 1 ? '' : 's'}?`}
+        body="Rankings, rivalries and pickle counts start fresh. You can undo it right after."
+        accent={colors.danger}
+        onClose={() => setConfirmClear(false)}
+      >
+        <Button label="Keep my stats" onPress={() => setConfirmClear(false)} />
+        <Button label="Clear everything" variant="ghost" onPress={clearAll} />
+      </Takeover>
     </Screen>
   );
 }
@@ -180,6 +242,18 @@ function LockedCrewStats() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
+  hint: { color: colors.muted, fontSize: 13, marginTop: -6 },
+  undo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceHi,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  undoText: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  undoAction: { color: colors.pickle, fontSize: 16, fontWeight: '900' },
   rank: { width: 32, fontSize: 20, color: colors.muted, fontWeight: '800' },
   name: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '800' },
   record: { color: colors.muted, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },

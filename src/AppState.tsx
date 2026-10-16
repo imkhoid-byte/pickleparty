@@ -10,6 +10,7 @@ import {
   Settings,
   addGame,
   clearHistory,
+  saveHistory,
   loadHistory,
   loadRoundRobin,
   loadSettings,
@@ -29,6 +30,10 @@ interface AppState {
   updateSettings: (patch: Partial<Settings>) => void;
   recordGame: (record: GameRecord) => void;
   resetHistory: () => void;
+  /** Remove one game (a test game, or one scored by mistake). */
+  deleteGame: (id: string) => void;
+  /** Put games back, e.g. to undo a delete. */
+  restoreHistory: (games: GameRecord[]) => void;
   applyStoreState: (state: StoreState) => void;
   /** The open-play round robin in progress (saved on the phone), or null. */
   roundRobin: RRSession | null;
@@ -127,6 +132,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     clearHistory().catch(() => {});
   }, []);
 
+  const deleteGame = useCallback((id: string) => {
+    setHistory((prev) => {
+      const next = prev.filter((g) => g.id !== id);
+      saveHistory(next).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const restoreHistory = useCallback((games: GameRecord[]) => {
+    setHistory(games);
+    saveHistory(games).catch(() => {});
+  }, []);
+
   return (
     <Ctx.Provider
       value={{
@@ -139,6 +157,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         updateSettings,
         recordGame,
         resetHistory,
+        deleteGame,
+        restoreHistory,
         applyStoreState,
         roundRobin,
         setRoundRobin,
