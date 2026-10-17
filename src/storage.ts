@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
 import type { RRSession } from './game/roundRobin';
-import { Team } from './game/scoring';
+import { MatchState, Team } from './game/scoring';
 import { AnnouncerId, announcerFor } from './audio/personas';
 import { Spice } from './game/spice';
 
@@ -75,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
 const SETTINGS_KEY = 'pickleparty.settings.v1';
 const HISTORY_KEY = 'pickleparty.history.v1';
 const ROUND_ROBIN_KEY = 'pickleparty.roundrobin.v1';
+const MATCH_KEY = 'pickleparty.match.v1';
 const MAX_HISTORY = 200;
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -124,4 +125,30 @@ export async function loadRoundRobin(): Promise<RRSession | null> {
 export async function saveRoundRobin(session: RRSession | null): Promise<void> {
   if (session) await AsyncStorage.setItem(ROUND_ROBIN_KEY, JSON.stringify(session));
   else await AsyncStorage.removeItem(ROUND_ROBIN_KEY);
+}
+
+/**
+ * The game in progress, saved after every rally, so it survives the page
+ * reloading (iPhone Safari often reloads a page after you switch apps).
+ */
+export interface SavedMatch {
+  /** Which game this is (part of the match screen's address). */
+  id: string;
+  match: MatchState;
+  firstServer: Team;
+  /** Set when the game is a court's game in the round robin ("round:match"). */
+  roundRobin?: string;
+  houseRuleId?: string;
+  courtRuleId?: string;
+  savedAt: number;
+}
+
+export async function loadSavedMatch(): Promise<SavedMatch | null> {
+  const s = await readJson<SavedMatch | null>(MATCH_KEY, null);
+  return s && s.id && s.match?.config ? s : null;
+}
+
+export async function saveMatchProgress(saved: SavedMatch | null): Promise<void> {
+  if (saved) await AsyncStorage.setItem(MATCH_KEY, JSON.stringify(saved));
+  else await AsyncStorage.removeItem(MATCH_KEY);
 }

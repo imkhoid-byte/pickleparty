@@ -7,14 +7,17 @@ import { StoreState, fetchStoreState } from './purchases';
 import {
   DEFAULT_SETTINGS,
   GameRecord,
+  SavedMatch,
   Settings,
   addGame,
   clearHistory,
   saveHistory,
   loadHistory,
   loadRoundRobin,
+  loadSavedMatch,
   loadSettings,
   saveRoundRobin,
+  saveMatchProgress,
   saveSettings,
 } from './storage';
 
@@ -45,6 +48,10 @@ interface AppState {
   /** The open-play round robin in progress (saved on the phone), or null. */
   roundRobin: RRSession | null;
   setRoundRobin: (update: (prev: RRSession | null) => RRSession | null) => void;
+  /** The game in progress, if any (restored after a reload, or offered on the home screen). */
+  savedMatch: SavedMatch | null;
+  /** Save the game in progress, or pass null to forget it. */
+  setSavedMatch: (saved: SavedMatch | null) => void;
   /** A round robin game scored in the app reports its result here. */
   reportRoundRobin: (link: RRLink, teamNames: [string, string], winner: 0 | 1 | null, score?: [number, number]) => void;
 }
@@ -56,6 +63,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [history, setHistory] = useState<GameRecord[]>([]);
   const [roundRobin, setRoundRobinState] = useState<RRSession | null>(null);
+  const [savedMatch, setSavedMatchState] = useState<SavedMatch | null>(null);
+
+  const setSavedMatch = useCallback((saved: SavedMatch | null) => {
+    setSavedMatchState(saved);
+    saveMatchProgress(saved).catch(() => {});
+  }, []);
 
   const setRoundRobin = useCallback((update: (prev: RRSession | null) => RRSession | null) => {
     setRoundRobinState((prev) => {
@@ -96,8 +109,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    Promise.all([loadSettings(), loadHistory(), loadRoundRobin()]).then(([s, h, rr]) => {
+    Promise.all([loadSettings(), loadHistory(), loadRoundRobin(), loadSavedMatch()]).then(([s, h, rr, m]) => {
       setRoundRobinState(rr);
+      setSavedMatchState(m);
       // Players from before the trial existed start theirs now.
       const loaded = s.ageAsked && s.trialStartedAt === null ? { ...s, trialStartedAt: Date.now() } : s;
       setSettings(loaded);
@@ -182,6 +196,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         applyStoreState,
         roundRobin,
         setRoundRobin,
+        savedMatch,
+        setSavedMatch,
         reportRoundRobin,
       }}
     >

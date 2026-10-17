@@ -20,9 +20,15 @@ function parseLink(raw: string | undefined): RRLink | undefined {
 }
 
 export default function MatchRoute() {
-  const { config, first, rr } = useLocalSearchParams<{ config?: string; first?: string; rr?: string }>();
+  const { config, first, rr, id } = useLocalSearchParams<{ config?: string; first?: string; rr?: string; id?: string }>();
   const parsed = parseConfig(config);
   // A refreshed or shared match link has no live game to resume; start fresh.
   if (!parsed) return <Redirect href="/setup" />;
-  return <Match config={parsed} firstServer={(first === '1' ? 1 : 0) as Team} roundRobin={parseLink(rr)} />;
+  return <Match
+      config={parsed}
+      firstServer={(first === '1' ? 1 : 0) as Team}
+      roundRobin={parseLink(rr)}
+      rrParam={rr}
+      gameId={id ?? 'unsaved'}
+    />;
 }

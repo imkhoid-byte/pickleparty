@@ -97,29 +97,57 @@ export function Match({
   config,
   firstServer,
   roundRobin,
+  rrParam,
+  gameId,
 }: {
   config: MatchConfig;
   firstServer: Team;
   /** Set when this game is one court's game in a round robin. */
   roundRobin?: RRLink;
+  /** The same link as it appears in the address, saved so a resumed game keeps it. */
+  rrParam?: string;
+  /** Which game this is, so a reload (or Resume) picks up the saved game. */
+  gameId: string;
 }) {
-  const { settings, updateSettings, recordGame, deck, courtRules, houseRules, lockedCards, access, history, reportRoundRobin } =
-    useApp();
+  const {
+    settings,
+    updateSettings,
+    recordGame,
+    deck,
+    courtRules,
+    houseRules,
+    lockedCards,
+    access,
+    history,
+    reportRoundRobin,
+    savedMatch,
+    setSavedMatch,
+  } = useApp();
+  // This game's saved progress, if the page reloaded or the game was resumed from the home screen.
+  const [resumed] = useState(() =>
+    savedMatch && savedMatch.id === gameId && savedMatch.match.winner === null ? savedMatch : null,
+  );
   useScreenAwake();
   const sun = settings.sunlight;
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
   const rules = houseRules;
-  const [match, setMatch] = useState(() => newMatch(config, firstServer));
-  const [houseRule, setHouseRule] = useState<PartyCard | null>(() => drawCard(rules));
+  const [match, setMatch] = useState(() => resumed?.match ?? newMatch(config, firstServer));
+  const [houseRule, setHouseRule] = useState<PartyCard | null>(
+    () => rules.find((c) => c.id === resumed?.houseRuleId) ?? drawCard(rules),
+  );
 
   // Chaos Rules: a Court Rule (instead of the house rule) that changes every few points.
   const chaos = settings.chaos;
-  const [courtRule, setCourtRule] = useState<PartyCard | null>(() => (chaos ? drawCard(courtRules) : null));
+  const [courtRule, setCourtRule] = useState<PartyCard | null>(() =>
+    chaos ? (courtRules.find((c) => c.id === resumed?.courtRuleId) ?? drawCard(courtRules)) : null,
+  );
   const [pendingBreak, setPendingBreak] = useState(false);
   // A match started from the setup screen can open with a water break.
-  const [prompt, setPrompt] = useState<Shown | null>(() => (pendingWaterBreak(history) ? WATER_BREAK : null));
+  const [prompt, setPrompt] = useState<Shown | null>(() =>
+    !resumed && pendingWaterBreak(history) ? WATER_BREAK : null,
+  );
   const [pendingMoment, setPendingMoment] = useState<MomentId | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
 
@@ -168,7 +196,12 @@ export function Match({
   }, [prompt]);
 
   // Open the game: who serves first and "0, 0, start" (after a water break, if one is due).
+  // A resumed game picks up where it left off instead.
   useEffect(() => {
+    if (resumed) {
+      announceLine(callout(`Welcome back. ${names[match.servingTeam]} serving. ${spokenScore(match)}`), voice);
+      return;
+    }
     const start = callout(scoreCallout(null, match));
     if (prompt !== WATER_BREAK) {
       announceLine(start, voice);
@@ -178,6 +211,27 @@ export function Match({
     announce(WATER_BREAK, { ...voice, sound: settings.sound, tail: start });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Save the game after every rally, so a reload or switching apps doesn't lose it.
+  // A finished game is in the stats instead, so it's forgotten here.
+  useEffect(() => {
+    // Finished, or undone back to the first serve: nothing worth resuming.
+    if (match.winner !== null || match.rallies === 0) {
+      if (savedMatch?.id === gameId) setSavedMatch(null);
+      return;
+    }
+    setSavedMatch({
+      id: gameId,
+      match,
+      firstServer,
+      roundRobin: rrParam,
+      houseRuleId: houseRule?.id,
+      courtRuleId: courtRule?.id,
+      savedAt: Date.now(),
+    });
+    // Only when the game itself changes; the saved copy changing must not loop back here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match, houseRule, courtRule]);
 
   /**
    * Score a rally. A moment (net ball, ace…) brings its own prompt; it's shown

@@ -10,7 +10,7 @@ import { packsInSeason } from '../game/cards';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
 import { autoPaywall, canUseAnnouncer, canUsePack, usableAnnouncer } from '../monetization/entitlements';
-import { openPaywall } from '../navigation';
+import { openPaywall, resumeMatch } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
@@ -44,6 +44,7 @@ export function Home() {
         <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
       </View>
 
+      <ResumeBanner />
       <ProBadge />
       <SeasonalBanner />
 
@@ -155,6 +156,39 @@ export function Home() {
   );
 }
 
+/** A game left unfinished (the page reloaded, or someone quit by mistake): pick it back up. */
+function ResumeBanner() {
+  const { savedMatch, setSavedMatch } = useApp();
+  const [now] = useState(() => Date.now());
+  // Older than half a day, it's not the same session any more.
+  if (!savedMatch || savedMatch.match.winner !== null || now - savedMatch.savedAt > 12 * 60 * 60 * 1000) return null;
+  const { config, scores } = savedMatch.match;
+  return (
+    <View style={styles.resume}>
+      <Pressable
+        onPress={() => resumeMatch(savedMatch)}
+        style={styles.resumeMain}
+        accessibilityRole="button"
+        accessibilityLabel={`Resume your game, ${config.teamNames[0]} ${scores[0]}, ${config.teamNames[1]} ${scores[1]}`}
+      >
+        <Text style={styles.resumeTitle}>▶ Resume your game</Text>
+        <Text style={styles.resumeScore} numberOfLines={1}>
+          {config.teamNames[0]} {scores[0]} – {scores[1]} {config.teamNames[1]}
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => setSavedMatch(null)}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Forget this game"
+        style={styles.resumeClose}
+      >
+        <Text style={styles.resumeCloseText}>✕</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /** Promote a seasonal pack (e.g. Halloween in October) until it's in the deck. */
 function SeasonalBanner() {
   const { settings, access } = useApp();
@@ -217,6 +251,17 @@ const styles = StyleSheet.create({
   logo: { width: 250, height: 250 },
   tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  resume: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.pickle,
+    borderRadius: radius.md,
+  },
+  resumeMain: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, gap: 2 },
+  resumeTitle: { color: colors.bg, fontSize: 17, fontWeight: '900' },
+  resumeScore: { color: colors.bg, fontSize: 14, fontWeight: '700' },
+  resumeClose: { paddingHorizontal: 16, paddingVertical: 12 },
+  resumeCloseText: { color: colors.bg, fontSize: 18, fontWeight: '900' },
   cell: { flexBasis: '46%', flexGrow: 1, paddingVertical: 14 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   muted: { color: colors.muted, fontSize: 14 },
