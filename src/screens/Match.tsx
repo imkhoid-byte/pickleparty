@@ -33,6 +33,7 @@ import { goBack, openPaywall } from '../navigation';
 import { shareImage } from '../shareImage';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
+import { ANNOUNCER_ART } from '../ui/announcerArt';
 import { LosersWheel } from '../ui/LosersWheel';
 import { PromptCard } from '../ui/PromptCard';
 import { ResultCard } from '../ui/ResultCard';
@@ -143,6 +144,8 @@ export function Match({
 
   /** Show a prompt and announce it out loud. */
   const voice = { voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) };
+  // Squeaky Pickle or Big Dill appear on the pop-ups they read out.
+  const speaker = settings.voice ? ANNOUNCER_ART[voice.announcer] : undefined;
   /** Show a prompt and announce it, then say `tail` (the score call) last. */
   const show = (p: Shown, tail?: string) => {
     setPrompt(p);
@@ -495,6 +498,7 @@ export function Match({
           body={prompt.body}
           accent={prompt.lockedPack ? colors.sky : prompt.big ? colors.orange : colors.pickle}
           footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
+          speaker={speaker}
           onClose={() => setPrompt(null)}
         >
           {prompt.card ? (
@@ -565,6 +569,7 @@ export function Match({
           body={prompt.body}
           footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
           duration={bannerTime(prompt)}
+          speaker={speaker}
           onClose={() => setPrompt(null)}
         />
       )}

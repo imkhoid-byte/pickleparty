@@ -1,6 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { ReactNode } from 'react';
 import {
+  Image,
+  ImageSourcePropType,
   Modal,
   Platform,
   Pressable,
@@ -110,11 +112,14 @@ export function Chip({
   selected,
   onPress,
   color = colors.pickle,
+  icon,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   color?: string;
+  /** A small picture before the label (e.g. an announcer's face). */
+  icon?: ImageSourcePropType;
 }) {
   return (
     <Pressable
@@ -127,8 +132,10 @@ export function Chip({
       style={[
         styles.chip,
         selected ? { backgroundColor: color, borderColor: color } : { borderColor: colors.surfaceHi },
+        icon ? styles.chipWithIcon : null,
       ]}
     >
+      {icon ? <Image source={icon} style={styles.chipIcon} accessibilityIgnoresInvertColors /> : null}
       <Text style={[styles.chipText, { color: selected ? colors.bg : colors.text }]}>{label}</Text>
     </Pressable>
   );
@@ -142,6 +149,16 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+/** The announcing character with a speech-bubble caption, at the top of a pop-up. */
+export function Speaker({ image, caption }: { image: ImageSourcePropType; caption: string }) {
+  return (
+    <View style={styles.speaker}>
+      <Image source={image} style={styles.speakerImage} accessibilityIgnoresInvertColors />
+      <Text style={styles.speakerCaption}>{caption}</Text>
+    </View>
+  );
+}
+
 /** Full-screen party takeover used for prompts, cards and game over. */
 export function Takeover({
   visible,
@@ -152,9 +169,12 @@ export function Takeover({
   children,
   footnote,
   hero,
+  speaker,
   onClose,
 }: {
   visible: boolean;
+  /** Who's announcing (the Pro announcers' character art), shown at the top. */
+  speaker?: { image: ImageSourcePropType; caption: string };
   emoji?: string;
   title?: string;
   /** Custom content shown instead of the emoji, title and body (e.g. the result card). */
@@ -172,6 +192,7 @@ export function Takeover({
         <Pressable style={[styles.takeover, { borderColor: accent }]} onPress={() => {}}>
           {/* Scrolls when the content is taller than a small phone's screen. */}
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.takeoverContent} bounces={false}>
+            {speaker ? <Speaker {...speaker} /> : null}
             {hero ?? (
               <>
                 {emoji ? <Text style={styles.takeoverEmoji}>{emoji}</Text> : null}
@@ -218,6 +239,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   chipText: { fontSize: 15, fontWeight: '800' },
+  chipWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 5, paddingVertical: 5 },
+  chipIcon: { width: 32, height: 32 },
+  speaker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  speakerImage: { width: 84, height: 84 },
+  speakerCaption: {
+    backgroundColor: colors.surfaceHi,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    overflow: 'hidden',
+  },
   label: {
     color: colors.muted,
     fontSize: 13,

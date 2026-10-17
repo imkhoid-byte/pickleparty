@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { PRIVACY_URL, TERMS_URL } from '../config';
@@ -15,6 +15,7 @@ import {
   restorePurchases,
   storeReady,
 } from '../purchases';
+import { ANNOUNCER_ART } from '../ui/announcerArt';
 import { Button, Card, Screen } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
@@ -30,7 +31,7 @@ const HEADLINES: Record<PaywallReason, { emoji: string; title: string; sub: stri
   roundRobin: { emoji: '🏟️', title: 'Run open play like a pro', sub: 'Rotating partners, fair sit-outs, live standings.' },
   pack: { emoji: '🃏', title: 'Every pack. Every drop.', sub: 'All Party Packs today, plus new ones as they land.' },
   customCards: { emoji: '✏️', title: 'Your crew, your cards', sub: 'Put your inside jokes in the deck.' },
-  voices: { emoji: '🐿️', title: 'Bring back the voices', sub: 'Squeaky Pickle and Big Dill call every penalty by name.' },
+  voices: { emoji: '🎙️', title: 'Bring back the voices', sub: 'Squeaky Pickle and Big Dill call every penalty by name.' },
   upgrade: { emoji: '👑', title: 'PickleParty Pro', sub: 'For crews who play every week.' },
 };
 
@@ -41,7 +42,7 @@ const BENEFITS = [
   ['🏟️', 'Round Robin', 'Run open play: partners, sit-outs, standings'],
   ['🃏', 'Every Party Pack', 'Plus new packs as they drop'],
   ['✏️', 'Custom cards', "Your crew's inside jokes, in the deck"],
-  ['🐿️', 'Announcer voices', 'Squeaky Pickle and Big Dill (Classic is free)'],
+  ['🎙️', 'Announcer voices', 'Squeaky Pickle and Big Dill (Classic is free)'],
 ];
 
 /** Mention the crew's own saved cards: missing what you made sells better than anything new. */
@@ -90,7 +91,16 @@ export function Paywall({ reason }: { reason: PaywallReason }) {
   return (
     <Screen onBack={goBack} title=" ">
       <View style={styles.hero}>
-        <Text style={{ fontSize: 64 }}>{head.emoji}</Text>
+        {reason === 'voices' ? (
+          // Show who they'd be getting back.
+          <View style={styles.voices}>
+            {[ANNOUNCER_ART.squeaky, ANNOUNCER_ART.bigdill].map((art, i) =>
+              art ? <Image key={i} source={art.image} style={styles.voiceArt} accessibilityIgnoresInvertColors /> : null,
+            )}
+          </View>
+        ) : (
+          <Text style={{ fontSize: 64 }}>{head.emoji}</Text>
+        )}
         <Text style={styles.title}>{head.title}</Text>
         <Text style={styles.sub}>{head.sub}</Text>
       </View>
@@ -219,6 +229,8 @@ function DevProToggle() {
 }
 
 const styles = StyleSheet.create({
+  voices: { flexDirection: 'row', gap: 12 },
+  voiceArt: { width: 110, height: 110 },
   hero: { alignItems: 'center', gap: 6, marginBottom: 4 },
   title: { color: colors.pickle, fontSize: 30, fontWeight: '900', textAlign: 'center' },
   sub: { color: colors.text, fontSize: 16, fontWeight: '600', textAlign: 'center', lineHeight: 22 },

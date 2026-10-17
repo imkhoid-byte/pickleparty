@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Speaker } from './components';
 
 import { colors, radius } from './theme';
 
@@ -14,8 +16,11 @@ export function PromptCard({
   body,
   footnote,
   duration,
+  speaker,
   onClose,
 }: {
+  /** Who's announcing (the Pro announcers' character art), shown at the top. */
+  speaker?: { image: ImageSourcePropType; caption: string };
   emoji: string;
   title: string;
   body: string;
@@ -40,7 +45,8 @@ export function PromptCard({
   return (
     <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityHint="Closes the prompt">
       <View style={styles.card}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        {speaker ? <Speaker {...speaker} /> : null}
+        <Text style={[styles.emoji, speaker && styles.emojiSmall]}>{emoji}</Text>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>{body}</Text>
         {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
@@ -87,6 +93,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   emoji: { fontSize: 72 },
+  // With the announcer pictured above, the emoji steps back.
+  emojiSmall: { fontSize: 44 },
   title: { color: colors.pickle, fontSize: 32, fontWeight: '900', textAlign: 'center' },
   body: { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center', lineHeight: 30 },
   footnote: { color: colors.muted, fontSize: 13, textAlign: 'center' },

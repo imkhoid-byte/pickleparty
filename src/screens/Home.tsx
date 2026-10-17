@@ -5,6 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../AppState';
 import { previewAnnouncer } from '../audio/announcer';
 import { ANNOUNCERS } from '../audio/personas';
+import { ANNOUNCER_ART } from '../ui/announcerArt';
 import { packsInSeason } from '../game/cards';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
@@ -97,7 +98,8 @@ export function Home() {
             return (
               <Chip
                 key={a.id}
-                label={`${locked ? '🔒' : a.emoji} ${a.label}`}
+                label={ANNOUNCER_ART[a.id] ? `${locked ? '🔒 ' : ''}${a.label}` : `${locked ? '🔒' : a.emoji} ${a.label}`}
+                icon={ANNOUNCER_ART[a.id]?.image}
                 selected={announcer === a.id}
                 color={colors.sky}
                 onPress={() => {

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#3A1E66"/><stop offset="1" stop-color="#160A2B"/>
+    </radialGradient>
+    <radialGradient id="body" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#E4FF8A"/><stop offset="0.45" stop-color="#9FE02E"/><stop offset="1" stop-color="#4E7F0E"/>
+    </radialGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFC24D"/><stop offset="1" stop-color="#FF8A1C"/>
+    </linearGradient>
+  </defs>
+  <!-- badge -->
+  <circle cx="256" cy="256" r="244" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#B6F23A" stroke-width="12"/>
+  <circle cx="256" cy="256" r="222" fill="none" stroke="#FF3D8B" stroke-width="4" opacity="0.8"/>
+  <!-- excitement sparkles -->
+  <g fill="#FFE14D">
+    <path d="M86 150 l10 24 24 10 -24 10 -10 24 -10 -24 -24 -10 24 -10z"/>
+    <path d="M420 300 l7 17 17 7 -17 7 -7 17 -7 -17 -17 -7 17 -7z"/>
+    <path d="M410 120 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z"/>
+  </g>
+  <g stroke="#3DD6FF" stroke-width="9" stroke-linecap="round">
+    <line x1="92" y1="300" x2="122" y2="296"/><line x1="98" y1="336" x2="126" y2="324"/>
+    <line x1="420" y1="214" x2="446" y2="200"/>
+  </g>
+  <!-- body: a short, round pickle -->
+  <g transform="rotate(-8 256 300)">
+    <rect x="150" y="150" width="212" height="300" rx="106" fill="url(#body)" stroke="#2F5208" stroke-width="8"/>
+    <g fill="#4E7F0E" opacity="0.55">
+      <ellipse cx="190" cy="330" rx="10" ry="14"/><ellipse cx="330" cy="370" rx="9" ry="12"/>
+      <ellipse cx="200" cy="410" rx="8" ry="10"/><ellipse cx="320" cy="300" rx="7" ry="9"/>
+      <ellipse cx="260" cy="420" rx="8" ry="10"/>
+    </g>
+    <ellipse cx="200" cy="215" rx="22" ry="40" fill="#FFFFFF" opacity="0.35"/>
+    <!-- huge excited eyes -->
+    <circle cx="214" cy="262" r="40" fill="#fff" stroke="#2F5208" stroke-width="6"/>
+    <circle cx="300" cy="262" r="40" fill="#fff" stroke="#2F5208" stroke-width="6"/>
+    <circle cx="220" cy="266" r="24" fill="#1A0E2E"/><circle cx="294" cy="266" r="24" fill="#1A0E2E"/>
+    <circle cx="228" cy="256" r="9" fill="#fff"/><circle cx="302" cy="256" r="9" fill="#fff"/>
+    <circle cx="214" cy="276" r="4" fill="#fff"/><circle cx="288" cy="276" r="4" fill="#fff"/>
+    <!-- raised eyebrows -->
+    <path d="M182 208 q30 -22 60 -4" fill="none" stroke="#2F5208" stroke-width="9" stroke-linecap="round"/>
+    <path d="M272 204 q30 -18 60 4" fill="none" stroke="#2F5208" stroke-width="9" stroke-linecap="round"/>
+    <!-- big yelling mouth -->
+    <path d="M214 318 q43 78 88 0 z" fill="#7A1030" stroke="#2F5208" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M232 344 q26 26 52 0 q-26 -14 -52 0z" fill="#FF6FA8"/>
+    <rect x="226" y="318" width="60" height="10" rx="4" fill="#fff"/>
+    <!-- rosy cheeks -->
+    <ellipse cx="180" cy="312" rx="16" ry="10" fill="#FF6FA8" opacity="0.7"/>
+    <ellipse cx="338" cy="312" rx="16" ry="10" fill="#FF6FA8" opacity="0.7"/>
+  </g>
+  <!-- propeller beanie -->
+  <g transform="rotate(-8 256 160)">
+    <path d="M170 182 q86 -96 172 0 z" fill="#FF3D8B" stroke="#2A0F3F" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M214 178 q42 -86 84 0" fill="#3DD6FF" stroke="none"/>
+    <path d="M240 176 q16 -76 32 0" fill="#FFE14D"/>
+    <rect x="164" y="174" width="184" height="18" rx="9" fill="#2A0F3F"/>
+    <rect x="252" y="96" width="8" height="34" fill="#2A0F3F"/>
+    <ellipse cx="226" cy="96" rx="34" ry="10" fill="#FFE14D" stroke="#2A0F3F" stroke-width="5"/>
+    <ellipse cx="286" cy="96" rx="34" ry="10" fill="#3DD6FF" stroke="#2A0F3F" stroke-width="5"/>
+    <circle cx="256" cy="96" r="9" fill="#FF3D8B" stroke="#2A0F3F" stroke-width="4"/>
+  </g>
+  <!-- tiny arm + juice box -->
+  <path d="M352 352 q30 -6 44 -34" fill="none" stroke="#2F5208" stroke-width="12" stroke-linecap="round"/>
+  <g transform="rotate(14 404 310)">
+    <rect x="378" y="268" width="54" height="72" rx="8" fill="url(#box)" stroke="#2A0F3F" stroke-width="6"/>
+    <circle cx="405" cy="306" r="14" fill="#FF3D8B"/>
+    <path d="M418 268 l8 -40 l16 -6" fill="none" stroke="#3DD6FF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M160 360 q-26 -2 -40 -26" fill="none" stroke="#2F5208" stroke-width="12" stroke-linecap="round"/>
+</svg>
