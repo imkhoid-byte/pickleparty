@@ -147,8 +147,11 @@ export function announce(
     sound: boolean;
     voice: boolean;
     announcer?: AnnouncerId;
-    /** Said last, plainly (e.g. the score), so it's what players hear as they get ready to serve. */
-    tail?: string;
+    /**
+     * Said first, plainly (the score call), so it's heard before the next serve
+     * even when the party line runs long.
+     */
+    lead?: string;
   },
 ) {
   hush();
@@ -157,7 +160,7 @@ export function announce(
   if (!opts.voice) return;
   const id = announcerFor(opts.announcer ?? '').id;
   const script = announcerScript(prompt, id);
-  const text = opts.tail ? `${script.text} ${opts.tail}` : script.text;
+  const text = opts.lead ? `${opts.lead} ${script.text}` : script.text;
   const { pitchScale } = script;
   const delay = withSound ? VOICE_DELAY[prompt.sound!] : 0;
   pendingVoice = setTimeout(() => {

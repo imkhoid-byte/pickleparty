@@ -273,6 +273,11 @@ describe('announcer personalities', () => {
       }
     }
   });
+  it('openers are rarer on everyday prompts, so rallies keep moving', () => {
+    const everyday = { title: 'Net Tax', body: 'Lob Squad, take 1 sip.', sound: 'sadtrombone' as const };
+    expect(announcerScript(everyday, 'bigdill', () => 0.5).text.startsWith('Net Tax')).toBe(true);
+    expect(announcerScript({ ...everyday, big: true }, 'bigdill', () => 0.5).text.startsWith('Net Tax')).toBe(false);
+  });
   it('every announcer introduces itself', () => {
     for (const a of ANNOUNCERS) expect(a.preview.length).toBeGreaterThan(10);
   });
@@ -326,8 +331,8 @@ describe('announcer voices', () => {
   });
   it('Big Dill uses a male voice, or deepens the default voice when there is none', () => {
     const dill = ANNOUNCERS.find((a) => a.id === 'bigdill')!;
-    expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.82 });
-    expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.82 });
+    expect(voiceSettings(dill, 'evan')).toEqual({ voice: 'evan', pitch: 0.65, rate: 0.9 });
+    expect(voiceSettings(dill, null)).toEqual({ pitch: 0.55, rate: 0.9 });
     const squeaky = ANNOUNCERS.find((a) => a.id === 'squeaky')!;
     expect(voiceSettings(squeaky, 'evan').voice).toBeUndefined();
   });

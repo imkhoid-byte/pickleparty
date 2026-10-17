@@ -62,6 +62,13 @@ function gameRecord(s: MatchState): GameRecord {
   };
 }
 
+/** Clicker and keyboard buttons: page turners send arrows or Page Up/Down. */
+const TOP_KEYS = ['ArrowLeft', 'ArrowUp', 'PageUp', '1'];
+const BOTTOM_KEYS = ['ArrowRight', 'ArrowDown', 'PageDown', ' ', '2'];
+
+/** Pickleball's serving side: from the right when the serving team's score is even, the left when odd. */
+const serveSide = (m: MatchState) => (m.scores[m.servingTeam] % 2 === 0 ? 'right' : 'left');
+
 /** The game that last triggered a water break, so one break is only shown once. */
 let lastWaterBreak: string | null = null;
 /** Remember which game's water break has been shown. */
@@ -174,10 +181,10 @@ export function Match({
   const voice = { voice: settings.voice, announcer: usableAnnouncer(settings.announcer, access) };
   // Squeaky Pickle or Big Dill appear on the pop-ups they read out.
   const speaker = settings.voice ? ANNOUNCER_ART[voice.announcer] : undefined;
-  /** Show a prompt and announce it, then say `tail` (the score call) last. */
-  const show = (p: Shown, tail?: string) => {
+  /** Show a prompt and announce it, with `lead` (the score call) said first. */
+  const show = (p: Shown, lead?: string) => {
     setPrompt(p);
-    announce(p, { ...voice, sound: settings.sound, tail });
+    announce(p, { ...voice, sound: settings.sound, lead });
   };
   /** The score call, if the announcer calls the score. */
   const callout = (text: string) => (settings.scoreCalls ? text : '');
@@ -208,7 +215,7 @@ export function Match({
       return;
     }
     markWaterBreak(pendingWaterBreak(history));
-    announce(WATER_BREAK, { ...voice, sound: settings.sound, tail: start });
+    announce(WATER_BREAK, { ...voice, sound: settings.sound, lead: start });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -252,12 +259,12 @@ export function Match({
       if (rule) rulePrompt = courtRulePrompt(rule.text, spice);
     }
     const next = p?.big ? p : (moment ?? rulePrompt ?? p);
-    // Then the score, as players would call it before the next serve.
-    const tail = callout(scoreCallout(match, state, next?.title === 'Side Out'));
-    // After a prompt, bare numbers would run on from the penalty, so label them.
-    if (next) show(next, /^\d/.test(tail) ? `Score: ${tail}` : tail);
+    // The score comes first: players need it before the next serve, and the party
+    // line can run long (simulated: late score calls drop from 16% of rallies to 1%).
+    const call = callout(scoreCallout(match, state));
+    if (next) show(next, call);
     else {
-      announceLine(tail, voice);
+      announceLine(call, voice);
       // Play has moved on: an old banner would now be out of date.
       if (prompt && isBanner(prompt)) setPrompt(null);
     }
@@ -328,6 +335,43 @@ export function Match({
     return () => clearTimeout(timer);
   }, [gameOverShown, imageKey, resultImage]);
 
+  const onUndo = () => {
+    if (match.history.length === 0) return;
+    // Undoing the winning point takes the result back out of the round robin too.
+    if (roundRobin && match.winner !== null) reportRoundRobin(roundRobin, config.teamNames, null);
+    resetBetweenGames();
+    const previous = undo(match);
+    setMatch(previous);
+    // Say the corrected score, so everyone knows the mis-tap was fixed.
+    announceLine(callout(`Undo. ${names[previous.servingTeam]} serving. ${spokenScore(previous)}`), voice);
+  };
+
+  // A Bluetooth clicker (a "page turner" or presentation remote) acts like a keyboard:
+  // its two buttons score for the top and bottom team, so nobody has to touch the phone.
+  // Kept in a ref so the key listener always sees the latest game.
+  const keysRef = useRef<(key: string) => void>(() => {});
+  useEffect(() => {
+    keysRef.current = (key: string) => {
+      if (['Backspace', 'u', 'U', 'z', 'Z'].includes(key)) return onUndo();
+      const team = TOP_KEYS.includes(key) ? 0 : BOTTOM_KEYS.includes(key) ? 1 : null;
+      // Only while a rally is being played: not over a card, a question or the end of the game.
+      if (team === null || match.winner !== null || pendingMoment !== null || pendingBreak || wheel !== null) return;
+      if (prompt && !isBanner(prompt)) return;
+      if (prompt) setPrompt(null);
+      onRally(team);
+    };
+  });
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.repeat) return;
+      if ([...TOP_KEYS, ...BOTTOM_KEYS].includes(e.key)) e.preventDefault();
+      keysRef.current(e.key);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   const rematch = () => {
     resetBetweenGames();
     const loser = match.winner === null ? firstServer : other(match.winner);
@@ -377,18 +421,7 @@ export function Match({
           <Text style={[styles.speaker, !sun && { opacity: 0.5 }]}>☀️</Text>
         </Pressable>
         <Pressable
-          onPress={() => {
-            // Undoing the winning point takes the result back out of the round robin too.
-            if (roundRobin && match.winner !== null) reportRoundRobin(roundRobin, config.teamNames, null);
-            resetBetweenGames();
-            const previous = undo(match);
-            setMatch(previous);
-            // Say the corrected score, so everyone knows the mis-tap was fixed.
-            announceLine(
-              callout(`Undo. ${names[previous.servingTeam]} serving. ${spokenScore(previous)}`),
-              voice,
-            );
-          }}
+          onPress={onUndo}
           disabled={match.history.length === 0}
           hitSlop={12}
           accessibilityRole="button"
@@ -458,7 +491,7 @@ export function Match({
                         config.format === 'doubles' && config.scoring === 'sideout'
                           ? ` · server ${match.serverNumber}`
                           : ''
-                      }`
+                      } · from the ${serveSide(match)}`
                     : 'tap when this team wins a rally'}
                 </Text>
               </View>

@@ -183,7 +183,7 @@ export function promptForEvents(
   if (sideOut && sideOut.type === 'sideOut' && rng() < SIDE_OUT_CHANCE) {
     return {
       emoji: '🔄',
-      title: 'Side Out',
+      title: 'Serve Tax',
       body: f('{team} lost the serve. Server, {sips:1}.', { team: name(other(sideOut.to)) }),
       sound: 'slidedown',
     };

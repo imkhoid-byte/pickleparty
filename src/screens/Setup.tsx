@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useApp } from '../AppState';
 import { Format, ScoringSystem, Team } from '../game/scoring';
 import { goBack, startMatch } from '../navigation';
-import { Button, Chip, Label, Screen } from '../ui/components';
+import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 
 const TEAM_NAMES = [
@@ -57,6 +57,44 @@ const SPOOKY_NAMES = [
 
 type NameStyle = 'teams' | 'couples' | 'spooky';
 
+/** Shown the first time someone sets up a match (and again from "How does it work?"). */
+const HOW_IT_WORKS = [
+  {
+    emoji: '📱',
+    title: 'Pick a Hype Man',
+    body: 'Someone sitting out, or the closest player, runs the phone. Got a Bluetooth speaker? Connect it so the whole court hears the announcer.',
+  },
+  {
+    emoji: '👆',
+    title: 'Tap who won each rally',
+    body: 'The app keeps score, calls it out loud and tracks who serves from which side. Mis-tap? Hit Undo. A Bluetooth page-turner clicker works too: left button for the top team, right for the bottom.',
+  },
+  {
+    emoji: '🎉',
+    title: 'Let the party happen',
+    body: 'Prompts pop up and close on their own. Tap a moment (net ball, ace…) when it happens, and draw a Party Card whenever the vibe dips.',
+  },
+];
+
+type PartyStyle = 'calm' | 'party' | 'chaos';
+const PARTY_STYLES: { id: PartyStyle; label: string; hint: string }[] = [
+  {
+    id: 'calm',
+    label: '😌 Calm',
+    hint: 'Only the big moments interrupt: Pickle Watch, game point and the win. Best when nobody is near the phone.',
+  },
+  {
+    id: 'party',
+    label: '🎉 Party',
+    hint: 'Side-outs, hot streaks and ties all get called out. Best with a Hype Man on the phone.',
+  },
+  {
+    id: 'chaos',
+    label: '🌀 Chaos',
+    hint: 'The full party, plus a new Court Rule every 3 points: hands only, hold hands, silent rallies… Break it and the other team wins the rally (tap 🚫 Rule broken).',
+  },
+];
+
 const randomName = (exclude: string, style: NameStyle = 'teams') => {
   const list = style === 'couples' ? COUPLE_NAMES : style === 'spooky' ? SPOOKY_NAMES : TEAM_NAMES;
   const pool = list.filter((n) => n !== exclude);
@@ -76,6 +114,18 @@ export function Setup() {
   const [scoring, setScoring] = useState<ScoringSystem>('sideout');
   const [target, setTarget] = useState(11);
   const [firstServer, setFirstServer] = useState<Team>(0);
+  const [howTo, setHowTo] = useState<number | null>(() => (settings.seenHowTo ? null : 0));
+  const partyStyle: PartyStyle = settings.chaos ? 'chaos' : settings.calm ? 'calm' : 'party';
+  const pickScoring = (next: ScoringSystem) => {
+    setScoring(next);
+    // Rally scoring to 11 is over in about 7 minutes, so it starts at 15 (still changeable).
+    if (next === 'rally' && target === 11) setTarget(15);
+    if (next === 'sideout' && target === 15) setTarget(11);
+  };
+  const closeHowTo = () => {
+    setHowTo(null);
+    if (!settings.seenHowTo) updateSettings({ seenHowTo: true });
+  };
 
   const setName = (team: Team, value: string) =>
     setNames((prev) => {
@@ -116,8 +166,8 @@ export function Setup() {
 
       <Label>Scoring</Label>
       <View style={styles.row}>
-        <Chip label="Classic side-out" selected={scoring === 'sideout'} onPress={() => setScoring('sideout')} />
-        <Chip label="Rally scoring" selected={scoring === 'rally'} onPress={() => setScoring('rally')} />
+        <Chip label="Classic side-out" selected={scoring === 'sideout'} onPress={() => pickScoring('sideout')} />
+        <Chip label="Rally scoring" selected={scoring === 'rally'} onPress={() => pickScoring('rally')} />
       </View>
 
       <Label>Play to</Label>
@@ -126,34 +176,24 @@ export function Setup() {
           <Chip key={n} label={String(n)} selected={target === n} onPress={() => setTarget(n)} />
         ))}
       </View>
-      <Text style={styles.hint}>Win by 2. Shut out the other team to PICKLE them. 🥒</Text>
-
-      <Label>Party pace</Label>
-      <View style={styles.row}>
-        <Chip label="🎉 Full party" selected={!settings.calm} onPress={() => updateSettings({ calm: false })} />
-        <Chip label="😌 Calm" selected={settings.calm} onPress={() => updateSettings({ calm: true })} />
-      </View>
       <Text style={styles.hint}>
-        {settings.calm
-          ? 'Only the big moments interrupt: Pickle Watch, game point and the win. Best when nobody is near the phone.'
-          : 'Side-outs, hot streaks and ties all get called out. Best with a Hype Man on the phone.'}
+        {scoring === 'rally' ? 'Every rally scores, so games go about twice as fast. ' : ''}Win by 2. Shut out the other
+        team to PICKLE them. 🥒
       </Text>
 
-      <Label>Chaos Rules</Label>
+      <Label>Party style</Label>
       <View style={styles.row}>
-        <Chip label="Off" selected={!settings.chaos} onPress={() => updateSettings({ chaos: false })} />
-        <Chip
-          label="🌀 New rule every 3 points"
-          selected={settings.chaos}
-          color={colors.danger}
-          onPress={() => updateSettings({ chaos: true })}
-        />
+        {PARTY_STYLES.map((p) => (
+          <Chip
+            key={p.id}
+            label={p.label}
+            selected={partyStyle === p.id}
+            color={p.id === 'chaos' ? colors.danger : colors.pickle}
+            onPress={() => updateSettings({ calm: p.id === 'calm', chaos: p.id === 'chaos' })}
+          />
+        ))}
       </View>
-      <Text style={styles.hint}>
-        {settings.chaos
-          ? 'Court Rules change how everyone plays: hands only, hold hands, silent rallies… Break the rule and the other team wins the rally. Tap 🚫 Rule broken to call it.'
-          : 'Turn it on for Court Rules that change how everyone plays, like hands-only rallies or partners holding hands.'}
-      </Text>
+      <Text style={styles.hint}>{PARTY_STYLES.find((p) => p.id === partyStyle)?.hint}</Text>
 
       <Label>First serve</Label>
       <View style={styles.row}>
@@ -169,16 +209,29 @@ export function Setup() {
       </View>
 
       <Button label="Let's Dink 🥒" onPress={start} style={{ marginTop: 12 }} />
-      <View style={styles.tips}>
-        <Text style={styles.tip}>
-          📱 <Text style={styles.tipBold}>Pick a Hype Man.</Text> Someone sitting out (or the closest player) keeps
-          the phone, taps who won each rally and calls the moments.
-        </Text>
-        <Text style={styles.tip}>
-          🔊 <Text style={styles.tipBold}>Got a Bluetooth speaker?</Text> Connect it so the whole court hears the
-          announcer.
-        </Text>
-      </View>
+      <Text style={styles.link} onPress={() => setHowTo(0)} accessibilityRole="button">
+        How does it work?
+      </Text>
+
+      {howTo !== null && (
+        <Takeover
+          visible
+          emoji={HOW_IT_WORKS[howTo].emoji}
+          title={HOW_IT_WORKS[howTo].title}
+          body={HOW_IT_WORKS[howTo].body}
+          footnote={`${howTo + 1} of ${HOW_IT_WORKS.length}`}
+          onClose={closeHowTo}
+        >
+          {howTo < HOW_IT_WORKS.length - 1 ? (
+            <>
+              <Button label="Next" onPress={() => setHowTo(howTo + 1)} />
+              <Button label="Skip" variant="ghost" onPress={closeHowTo} />
+            </>
+          ) : (
+            <Button label="Got it, let's play" onPress={closeHowTo} />
+          )}
+        </Takeover>
+      )}
     </Screen>
   );
 }
@@ -200,7 +253,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   hint: { color: colors.muted, fontSize: 14 },
-  tips: { gap: 10, backgroundColor: colors.surface, borderRadius: radius.md, padding: 14 },
-  tip: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  tipBold: { color: colors.text, fontWeight: '800' },
+  link: { color: colors.sky, fontSize: 15, fontWeight: '700', textAlign: 'center', paddingVertical: 4 },
 });

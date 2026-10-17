@@ -28,6 +28,8 @@ export interface Settings {
   calm: boolean;
   /** Chaos Rules: a new Court Rule every few points. */
   chaos: boolean;
+  /** The first-match "How it works" has been shown. */
+  seenHowTo: boolean;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sunlight: false,
   calm: false,
   chaos: false,
+  seenHowTo: false,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,

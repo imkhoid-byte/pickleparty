@@ -43,7 +43,7 @@ export const ANNOUNCERS: Announcer[] = [
     blurb: 'A terribly posh British gentleman, far too polite about your terrible shots.',
     preview: 'Good afternoon. I am Big Dill, and I shall be announcing your little game. Do try not to embarrass yourselves.',
     pitch: 0.65,
-    rate: 0.82,
+    rate: 0.9,
     male: true,
     accent: 'en-GB',
     fallbackPitch: 0.55,
@@ -70,6 +70,8 @@ const MOOD: Record<SoundId, Mood> = {
 /** How a character talks: what it says before and after a prompt, and how it rewords it. */
 interface Character {
   intros: Record<Mood, string[]>;
+  /** How often an everyday prompt gets an opener (big moments nearly always do). Keeps rallies moving. */
+  introChance: number;
   outros: Record<Mood, string[]>;
   /** Rewords the prompt in the character's voice. Must keep every name and number. */
   restyle: (core: string, rng: () => number) => string;
@@ -99,6 +101,7 @@ const CHARACTERS: Record<Exclude<AnnouncerId, 'classic'>, Character> = {
       drama: ["I have to pee but I'm NOT leaving!", 'This is better than cartoons!'],
       neutral: ['Are we there yet?', 'Can we get ice cream after?', 'Did you see that? Did you see that?!', "I'm not tired. You're tired."],
     },
+    introChance: 0.7,
     restyle: (core, rng) => {
       // Everything is exciting. Sometimes it says the headline twice, because it can.
       const loud = core.replace(/\.(?=\s|$)/g, '!');
@@ -139,6 +142,8 @@ const CHARACTERS: Record<Exclude<AnnouncerId, 'classic'>, Character> = {
       drama: ['My monocle has fallen into my tea.', 'I find myself perched on the edge of my chaise longue.'],
       neutral: ['Tally ho.', 'Carry on.', 'Frightfully good fun, this.', 'Cheerio.'],
     },
+    // He takes his time, so he skips the preamble more often.
+    introChance: 0.45,
     restyle: (core) =>
       core
         // British understatement: nothing is worth an exclamation mark.
@@ -170,7 +175,7 @@ export function announcerFor(id: string): Announcer {
 
 /** What the announcer says for a prompt, and how. Classic reads it straight. */
 export function announcerScript(
-  prompt: Pick<PartyPrompt, 'title' | 'body' | 'sound'>,
+  prompt: Pick<PartyPrompt, 'title' | 'body' | 'sound' | 'big'>,
   id: AnnouncerId,
   rng: () => number = Math.random,
 ): { text: string; pitch: number; rate: number; pitchScale: number } {
@@ -179,7 +184,7 @@ export function announcerScript(
   if (a.id === 'classic') return { text: core, pitch: a.pitch, rate: a.rate, pitchScale: 1 };
   const c = CHARACTERS[a.id];
   const mood = prompt.sound ? MOOD[prompt.sound] : 'neutral';
-  const intro = rng() < 0.8 ? `${pick(c.intros[mood], rng)} ` : '';
+  const intro = rng() < (prompt.big ? 0.9 : c.introChance) ? `${pick(c.intros[mood], rng)} ` : '';
   // Sign off in character most of the time, with the odd pickle pun.
   const roll = rng();
   const outro = roll < 0.4 ? ` ${pick(c.outros[mood], rng)}` : roll < 0.55 ? ` ${pick(PUNS, rng)}` : '';
