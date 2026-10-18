@@ -17,8 +17,11 @@ export function PromptCard({
   footnote,
   duration,
   speaker,
+  wide,
   onClose,
 }: {
+  /** Sideways screen (mirrored to a TV): a wider, shorter card. */
+  wide?: boolean;
   /** Who's announcing (the Pro announcers' character art), shown at the top. */
   speaker?: { image: ImageSourcePropType; caption: string };
   emoji: string;
@@ -44,13 +47,13 @@ export function PromptCard({
 
   return (
     <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityHint="Closes the prompt">
-      <View style={styles.card}>
+      <View style={[styles.card, wide && styles.cardWide]}>
         {speaker ? <Speaker {...speaker} /> : null}
-        <Text style={[styles.emoji, speaker && styles.emojiSmall]}>{emoji}</Text>
-        <Text style={styles.title}>{title}</Text>
+        {wide && speaker ? null : <Text style={[styles.emoji, speaker && styles.emojiSmall]}>{emoji}</Text>}
+        <Text style={styles.title}>{wide && speaker ? `${emoji} ${title}` : title}</Text>
         <Text style={styles.body}>{body}</Text>
         {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
-        <Text style={styles.hint}>Closes on its own · tap to close now</Text>
+        {wide ? null : <Text style={styles.hint}>Closes on its own · tap to close now</Text>}
         <View style={styles.track}>
           <Animated.View
             style={[
@@ -92,6 +95,7 @@ const styles = StyleSheet.create({
     gap: 10,
     overflow: 'hidden',
   },
+  cardWide: { maxWidth: 760, paddingTop: 16, paddingBottom: 14, gap: 6 },
   emoji: { fontSize: 72 },
   // With the announcer pictured above, the emoji steps back.
   emojiSmall: { fontSize: 44 },

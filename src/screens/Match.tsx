@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router, useIsFocused } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -136,6 +136,13 @@ export function Match({
   );
   useScreenAwake();
   const sun = settings.sunlight;
+  // Phone or iPad turned sideways: a TV-friendly layout that fills a mirrored screen.
+  const { width, height } = useWindowDimensions();
+  const wide = width > height;
+  const bigScore = { fontSize: Math.min(220, Math.round(height * 0.3)), lineHeight: Math.min(230, Math.round(height * 0.32)) };
+  // Names and the serve line grow with the screen too, so they read from across a room.
+  const bigName = { fontSize: Math.max(24, Math.min(56, Math.round(height * 0.065))) };
+  const bigTag = { fontSize: Math.max(13, Math.min(24, Math.round(height * 0.03))) };
   const back = goBack;
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
@@ -431,10 +438,10 @@ export function Match({
       </View>
 
       {/* Above the team buttons, so a long banner can spill over them and stay readable. */}
-      <View style={styles.top}>
+      <View style={[styles.top, wide && styles.topWide]}>
       {chaos && courtRule ? (
         <Pressable
-          style={[styles.rule, styles.courtRule, sun && styles.sunSurface]}
+          style={[styles.rule, styles.courtRule, sun && styles.sunSurface, wide && styles.ruleWide]}
           onPress={() => setCourtRule(newCourtRule())}
           accessibilityHint="Draw a different Court Rule"
         >
@@ -448,7 +455,7 @@ export function Match({
         </Pressable>
       ) : houseRule && (
         <Pressable
-          style={[styles.rule, sun && styles.sunSurface]}
+          style={[styles.rule, sun && styles.sunSurface, wide && styles.ruleWide]}
           onPress={() => setHouseRule(drawCard(rules, [houseRule.id]))}
           accessibilityHint="Draw a different house rule"
         >
@@ -460,12 +467,12 @@ export function Match({
         </Pressable>
       )}
 
-      <Text style={styles.call} accessibilityLabel={`Score ${callScore(match)}`}>
+      <Text style={[styles.call, wide && styles.callWide]} accessibilityLabel={`Score ${callScore(match)}`}>
         {callScore(match)}
       </Text>
       </View>
 
-      <View style={styles.courts}>
+      <View style={[styles.courts, wide && styles.courtsWide]}>
         {([0, 1] as Team[]).map((t) => {
           const serving = match.servingTeam === t;
           return (
@@ -476,16 +483,17 @@ export function Match({
               accessibilityLabel={`${names[t]} won the rally`}
               style={({ pressed }) => [
                 styles.team,
+                wide && styles.teamWide,
                 sun && styles.sunSurface,
                 { borderColor: serving ? teamColors[t] : colors.surfaceHi },
                 pressed && { transform: [{ scale: 0.98 }], backgroundColor: colors.surfaceHi },
               ]}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.teamName, { color: teamColors[t] }]} numberOfLines={1}>
+              <View style={wide ? styles.teamInfoWide : { flex: 1 }}>
+                <Text style={[styles.teamName, wide && bigName, { color: teamColors[t] }]} numberOfLines={1}>
                   {names[t]}
                 </Text>
-                <Text style={[styles.serveTag, sun && styles.sunServeTag]}>
+                <Text style={[styles.serveTag, sun && styles.sunServeTag, wide && [bigTag, { textAlign: 'center' }]]} numberOfLines={1}>
                   {serving
                     ? `🏓 Serving${
                         config.format === 'doubles' && config.scoring === 'sideout'
@@ -495,14 +503,14 @@ export function Match({
                     : 'tap when this team wins a rally'}
                 </Text>
               </View>
-              <Text style={[styles.score, { color: teamColors[t] }]}>{match.scores[t]}</Text>
+              <Text style={[styles.score, wide && bigScore, { color: teamColors[t] }]}>{match.scores[t]}</Text>
             </Pressable>
           );
         })}
       </View>
 
       {/* Every moment visible at once, 4 to a row: nothing to scroll for mid-game. */}
-      <View style={styles.moments}>
+      <View style={[styles.moments, wide && styles.momentsWide]}>
         {chaos && courtRule && (
           <Pressable
             onPress={() => {
@@ -510,7 +518,7 @@ export function Match({
               tap(settings.haptics);
               setPendingBreak(true);
             }}
-            style={[styles.moment, styles.breakMoment, sun && styles.sunSurface]}
+            style={[styles.moment, styles.breakMoment, sun && styles.sunSurface, wide && styles.momentWide]}
             accessibilityRole="button"
           >
             <Text style={{ fontSize: 22 }}>🚫</Text>
@@ -525,18 +533,27 @@ export function Match({
               tap(settings.haptics);
               setPendingMoment(m.id);
             }}
-            style={[styles.moment, sun && styles.sunSurface]}
+            style={[styles.moment, sun && styles.sunSurface, wide && styles.momentWide]}
             accessibilityRole="button"
           >
-            <Text style={{ fontSize: 22 }}>{m.emoji}</Text>
+            <Text style={{ fontSize: wide ? 18 : 22 }}>{m.emoji}</Text>
             <Text style={[styles.momentText, sun && styles.sunMomentText]}>{m.label}</Text>
           </Pressable>
         ))}
+        {/* Sideways there's no room for a full-width button, so the card draw joins the row. */}
+        {wide && (
+          <Pressable onPress={onDraw} style={[styles.moment, styles.momentWide, styles.drawWide]} accessibilityRole="button">
+            <Text style={{ fontSize: 18 }}>🃏</Text>
+            <Text style={[styles.momentText, { color: colors.bg }]}>Party Card</Text>
+          </Pressable>
+        )}
       </View>
 
-      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-        <Button label="🃏  Draw a Party Card" variant="pink" onPress={onDraw} />
-      </View>
+      {!wide && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <Button label="🃏  Draw a Party Card" variant="pink" onPress={onDraw} />
+        </View>
+      )}
 
       {/* One modal for everything: iOS can't present a second modal while another is closing. */}
       {!focused ? null : pendingBreak ? (
@@ -657,6 +674,7 @@ export function Match({
           footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
           duration={bannerTime(prompt)}
           speaker={speaker}
+          wide={wide}
           onClose={() => setPrompt(null)}
         />
       )}
@@ -728,6 +746,16 @@ const styles = StyleSheet.create({
   wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   resultRow: { flexDirection: 'row', gap: 10 },
   top: { zIndex: 10, elevation: 10 },
+  // Sideways (TV) layout: rule and score call share one line, the teams sit side by side.
+  topWide: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
+  ruleWide: { flex: 1, marginHorizontal: 0, paddingVertical: 8 },
+  callWide: { fontSize: 40, marginVertical: 0 },
+  courtsWide: { flexDirection: 'row', paddingTop: 8 },
+  teamWide: { flexDirection: 'column', justifyContent: 'center', alignItems: 'center', paddingVertical: 6 },
+  teamInfoWide: { alignItems: 'center', maxWidth: '100%' },
+  momentsWide: { flexWrap: 'nowrap', paddingVertical: 6 },
+  momentWide: { flexBasis: 0, paddingVertical: 4 },
+  drawWide: { backgroundColor: colors.pink },
   // Sunlight mode: pure black, brighter and bigger text, so it reads outdoors at noon.
   sunBg: { backgroundColor: '#000000' },
   sunSurface: { backgroundColor: '#111111' },
