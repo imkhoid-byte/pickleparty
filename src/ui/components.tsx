@@ -213,7 +213,8 @@ export function Takeover({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  scroll: { padding: 20, gap: 14, paddingBottom: 40 },
+  // Capped and centered, so screens don't stretch edge to edge on a sideways phone, a tablet or a laptop.
+  scroll: { padding: 20, gap: 14, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
