@@ -139,6 +139,17 @@ export function Match({
   // Phone or iPad turned sideways: a TV-friendly layout that fills a mirrored screen.
   const { width, height } = useWindowDimensions();
   const wide = width > height;
+  const [tvHelp, setTvHelp] = useState(false);
+  // The first couple of matches, a quick tip that sideways is the big-screen mode.
+  const [tvTip, setTvTip] = useState(() => settings.tvTipsShown < 2 && width <= height);
+  useEffect(() => {
+    if (!tvTip) return;
+    updateSettings({ tvTipsShown: settings.tvTipsShown + 1 });
+    const timer = setTimeout(() => setTvTip(false), 7000);
+    return () => clearTimeout(timer);
+    // Once per match.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const bigScore = { fontSize: Math.min(220, Math.round(height * 0.3)), lineHeight: Math.min(230, Math.round(height * 0.32)) };
   // Names and the serve line grow with the screen too, so they read from across a room.
   const bigName = { fontSize: Math.max(24, Math.min(56, Math.round(height * 0.065))) };
@@ -362,7 +373,7 @@ export function Match({
       if (['Backspace', 'u', 'U', 'z', 'Z'].includes(key)) return onUndo();
       const team = TOP_KEYS.includes(key) ? 0 : BOTTOM_KEYS.includes(key) ? 1 : null;
       // Only while a rally is being played: not over a card, a question or the end of the game.
-      if (team === null || match.winner !== null || pendingMoment !== null || pendingBreak || wheel !== null) return;
+      if (team === null || match.winner !== null || pendingMoment !== null || pendingBreak || tvHelp || wheel !== null) return;
       if (prompt && !isBanner(prompt)) return;
       if (prompt) setPrompt(null);
       onRally(team);
@@ -426,6 +437,14 @@ export function Match({
           accessibilityLabel={sun ? 'Turn off sunlight mode' : 'Sunlight mode: brighter, bigger text'}
         >
           <Text style={[styles.speaker, !sun && { opacity: 0.5 }]}>☀️</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setTvHelp(true)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="How to show the game on a TV"
+        >
+          <Text style={[styles.speaker, !wide && { opacity: 0.5 }]}>📺</Text>
         </Pressable>
         <Pressable
           onPress={onUndo}
@@ -556,7 +575,29 @@ export function Match({
       )}
 
       {/* One modal for everything: iOS can't present a second modal while another is closing. */}
-      {!focused ? null : pendingBreak ? (
+      {/* The tip sits over the house rule for a few seconds and never blocks scoring. */}
+      {tvTip && !wide && (
+        <Pressable onPress={() => setTvTip(false)} style={styles.tvTip} accessibilityRole="button" accessibilityHint="Dismiss">
+          <Text style={styles.tvTipText}>📺 Tip: turn your phone sideways for big-screen TV mode</Text>
+        </Pressable>
+      )}
+
+      {!focused ? null : tvHelp ? (
+        <Takeover
+          visible
+          emoji="📺"
+          title={wide ? "You're in TV mode" : 'Put it on the big screen'}
+          body={
+            wide
+              ? 'To show it on a TV: swipe down from the top-right corner for Control Center, tap Screen Mirroring and pick your TV.'
+              : 'Turn your phone sideways for TV mode: big scores, side by side. Then swipe down from the top-right corner for Control Center, tap Screen Mirroring and pick your TV.'
+          }
+          footnote="Phone won't turn? Rotation lock is on: tap the lock icon in Control Center."
+          onClose={() => setTvHelp(false)}
+        >
+          <Button label="Got it" onPress={() => setTvHelp(false)} />
+        </Takeover>
+      ) : pendingBreak ? (
         <Takeover visible emoji="🚫" title="Who broke the rule?" accent={colors.danger} onClose={() => setPendingBreak(false)}>
           {([0, 1] as Team[]).map((t) => (
             <Button
@@ -746,6 +787,20 @@ const styles = StyleSheet.create({
   wheelResult: { color: colors.orange, fontSize: 16, fontWeight: '800', textAlign: 'center' },
   resultRow: { flexDirection: 'row', gap: 10 },
   top: { zIndex: 10, elevation: 10 },
+  tvTip: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    // Over the house rule (least needed in the first seconds), clear of the score and moment buttons.
+    top: 52,
+    backgroundColor: colors.sky,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    zIndex: 15,
+    elevation: 15,
+  },
+  tvTipText: { color: colors.bg, fontSize: 14, fontWeight: '800', textAlign: 'center' },
   // Sideways (TV) layout: rule and score call share one line, the teams sit side by side.
   topWide: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
   ruleWide: { flex: 1, marginHorizontal: 0, paddingVertical: 8 },

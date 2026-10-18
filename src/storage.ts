@@ -30,6 +30,8 @@ export interface Settings {
   chaos: boolean;
   /** The first-match "How it works" has been shown. */
   seenHowTo: boolean;
+  /** How many matches have shown the "turn sideways for TV mode" tip (it shows for the first two). */
+  tvTipsShown: number;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   calm: false,
   chaos: false,
   seenHowTo: false,
+  tvTipsShown: 0,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,
