@@ -5,6 +5,8 @@ export const HASHTAG = '#PickleParty';
 
 export const TERMS_URL = `${APP_LINK}/terms.html`;
 export const PRIVACY_URL = `${APP_LINK}/privacy.html`;
+/** Bump when the Terms change materially: everyone is asked to agree again. */
+export const TERMS_VERSION = '2026-10-19';
 export const SUPPORT_EMAIL = 'imkhoid@gmail.com';
 
 /**

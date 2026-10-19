@@ -37,7 +37,7 @@ export const WILD_ACTS = [
   "compliment your partner's best feature, not the pickleball kind",
   'swap hats or sunglasses with your partner',
   'serenade your partner for 5 seconds',
-  'give your partner a piggyback to the baseline',
+  'walk your partner to the baseline arm in arm',
   'let your partner give you a new nickname for the rest of the game',
 ];
 

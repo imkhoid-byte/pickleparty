@@ -12,6 +12,9 @@ export interface Settings {
   ageConfirmed: boolean;
   /** Whether the age gate has been shown at all. */
   ageAsked: boolean;
+  /** The Terms version the player agreed to (TERMS_VERSION), and when, as a record of their agreement. */
+  termsVersion: string | null;
+  termsAcceptedAt: number | null;
   /** Packs bought one by one (from the store). */
   unlockedPacks: PackId[];
   activePacks: PackId[];
@@ -59,6 +62,8 @@ export const DEFAULT_SETTINGS: Settings = {
   spice: 'chill',
   ageConfirmed: false,
   ageAsked: false,
+  termsVersion: null,
+  termsAcceptedAt: null,
   unlockedPacks: ['classic'],
   activePacks: ['classic'],
   haptics: true,

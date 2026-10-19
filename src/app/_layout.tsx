@@ -6,13 +6,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppStateProvider, useApp } from '../AppState';
 import { unlockAudio } from '../audio/announcer';
+import { TERMS_VERSION } from '../config';
 import { AgeGate } from '../screens/AgeGate';
 import { colors } from '../ui/theme';
 
 function Gate() {
   const { ready, settings } = useApp();
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
-  if (!settings.ageAsked) return <AgeGate />;
+  // First launch, or the Terms changed since the player agreed to them.
+  if (!settings.ageAsked || settings.termsVersion !== TERMS_VERSION) return <AgeGate />;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="pro" options={{ presentation: 'modal' }} />
