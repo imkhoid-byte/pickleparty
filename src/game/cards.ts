@@ -97,6 +97,7 @@ export const CARDS: Card[] = [
     'Do your best victory dance right now. If the group votes it lame, {sips:1}.',
     'Play the next rally on one foot as much as you can.',
     'Give your partner a pep talk like they are about to play the championship.',
+    'Play the next rally with your free hand behind your back.',
   ]),
   ...c('classic', 'rule', [
     'Nobody can say "out". Say "pickle" instead. Violators {sips:1}.',
@@ -133,6 +134,7 @@ export const CARDS: Card[] = [
     'Be Nice: compliment an opponent before every serve. Forget and the serve is a fault.',
     'Low Rider: everyone plays crouched with bent knees. Stand up straight and you lose the rally.',
     'Bounce It: every ball has to bounce before you hit it. No volleys anywhere.',
+    'Mic Drop: pretend to drop a mic after every shot you hit.',
   ]),
   ...c('kitchen', 'dare', [
     'You must stand in the kitchen for the entire next rally. Every volley: {sips:1}.',
@@ -156,6 +158,7 @@ export const CARDS: Card[] = [
     'Attempt an Erne this game. Pull it off and the other team {sips:3}.',
     'Serve and hit the paddle-handle "tweener". Film it for the group chat.',
     'Return a lob with a jump overhead. Land it and pick a house rule.',
+    'Put away a lob with an overhead smash. Land it and pick a house rule.',
   ]),
   ...c('afterdark', 'dare', [
     'Text your ex your pickleball rating. Or {finish}.',
@@ -163,6 +166,8 @@ export const CARDS: Card[] = [
     'Do your best impression of each player on court. If the group votes them the worst, {sips:2}.',
     'Tell the group your most embarrassing pickleball moment or {sips:3}.',
     'Serenade your partner for 15 seconds before the next serve.',
+    'Let the group pick your victory dance for the rest of the game. Or {finish}.',
+    'Let the opposing team pick your nickname for the rest of the game.',
   ]),
   ...c('afterdark', 'vote', [
     'Who is most likely to cry after losing? They {sips:2}.',

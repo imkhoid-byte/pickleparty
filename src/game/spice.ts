@@ -39,6 +39,7 @@ export const WILD_ACTS = [
   'serenade your partner for 5 seconds',
   'give your partner a piggyback to the baseline',
   'let your partner give you a new nickname for the rest of the game',
+  'walk your partner to the baseline arm in arm',
 ];
 
 /** For the big penalties ({finish}). */
