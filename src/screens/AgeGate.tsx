@@ -36,7 +36,8 @@ export function AgeGate() {
         </Text>
         <Text style={styles.fine}>
           Play responsibly: every dare and drink is optional, never drink and drive, and stop if you feel unwell.
-          You play at your own risk. By continuing you agree to the{' '}
+          You play at your own risk and you are responsible for your own actions. By continuing you agree to
+          the{' '}
           <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)}>
             Terms of Use
           </Text>{' '}
