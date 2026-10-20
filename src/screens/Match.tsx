@@ -30,6 +30,8 @@ import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, 
 import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
+import { ClipStrip, ReplayPreview } from '../replay/ReplayViews';
+import { useReplay } from '../replay/useReplay';
 import { shareImage } from '../shareImage';
 import type { GameRecord } from '../storage';
 import { Button, Takeover, tap } from '../ui/components';
@@ -95,6 +97,9 @@ type Shown = PartyPrompt & { card?: boolean; lockedPack?: string };
 const isBanner = (p: Shown) => !p.card && !p.big;
 
 /** Long enough for the announcer to finish reading it. */
+/** Plays worth a clip without anyone asking (when Instant Replay is on). */
+const AUTO_CLIP: MomentId[] = ['ace', 'erne', 'longRally', 'bodyShot'];
+
 const bannerTime = (p: Shown) => {
   const words = `${p.title} ${p.body}`.split(/\s+/).length;
   return Math.min(15000, Math.max(6000, 3000 + words * 450));
@@ -140,6 +145,10 @@ export function Match({
   const { width, height } = useWindowDimensions();
   const wide = width > height;
   const [tvHelp, setTvHelp] = useState(false);
+  // Instant Replay: film the court, save great points.
+  const replay = useReplay();
+  const [camSheet, setCamSheet] = useState(false);
+  const [courtSound, setCourtSound] = useState(false);
   // The first couple of matches, a quick tip that sideways is the big-screen mode.
   const [tvTip, setTvTip] = useState(() => settings.tvTipsShown < 2 && width <= height);
   useEffect(() => {
@@ -154,7 +163,17 @@ export function Match({
   // Names and the serve line grow with the screen too, so they read from across a room.
   const bigName = { fontSize: Math.max(24, Math.min(56, Math.round(height * 0.065))) };
   const bigTag = { fontSize: Math.max(13, Math.min(24, Math.round(height * 0.03))) };
-  const back = goBack;
+  /** Leave the game, after a warning if there are clips that would be lost. */
+  const back = () => {
+    const n = replay.clips.length;
+    if (
+      n > 0 &&
+      typeof window !== 'undefined' &&
+      !window.confirm(`Leave the game? Your ${n === 1 ? 'clip' : `${n} clips`} will be gone unless you share or save ${n === 1 ? 'it' : 'them'} first.`)
+    )
+      return;
+    goBack();
+  };
   // Pop-ups are native modals: hide them while another screen is on top.
   const focused = useIsFocused();
   const rules = houseRules;
@@ -258,6 +277,17 @@ export function Match({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, houseRule, courtRule]);
 
+  // The score on the video follows the game.
+  useEffect(() => {
+    if (!replay.on) return;
+    replay.setOverlay({
+      names: config.teamNames,
+      scores: match.scores,
+      colors: [teamColors[0], teamColors[1]],
+      serving: match.servingTeam,
+    });
+  }, [replay, match, config.teamNames]);
+
   /**
    * Score a rally. A moment (net ball, ace…) brings its own prompt; it's shown
    * instead of a smaller event prompt, but a game-ending prompt still wins.
@@ -289,6 +319,7 @@ export function Match({
     if (state.winner !== null) {
       if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       recordGame(gameRecord(state));
+      replay.clip(state.scores[other(state.winner)] === 0 ? '🥒 PICKLED!' : `🏆 ${names[state.winner].toUpperCase()} WIN`);
       if (roundRobin) reportRoundRobin(roundRobin, config.teamNames, state.winner, state.scores);
     }
   };
@@ -373,7 +404,7 @@ export function Match({
       if (['Backspace', 'u', 'U', 'z', 'Z'].includes(key)) return onUndo();
       const team = TOP_KEYS.includes(key) ? 0 : BOTTOM_KEYS.includes(key) ? 1 : null;
       // Only while a rally is being played: not over a card, a question or the end of the game.
-      if (team === null || match.winner !== null || pendingMoment !== null || pendingBreak || tvHelp || wheel !== null) return;
+      if (team === null || match.winner !== null || pendingMoment !== null || pendingBreak || tvHelp || camSheet || wheel !== null) return;
       if (prompt && !isBanner(prompt)) return;
       if (prompt) setPrompt(null);
       onRally(team);
@@ -438,6 +469,16 @@ export function Match({
         >
           <Text style={[styles.speaker, !sun && { opacity: 0.5 }]}>☀️</Text>
         </Pressable>
+        {replay.supported && (
+          <Pressable
+            onPress={() => setCamSheet(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Instant Replay: film the game and save great points"
+          >
+            <Text style={[styles.speaker, !replay.on && { opacity: 0.5 }]}>🎬</Text>
+          </Pressable>
+        )}
         <Pressable
           onPress={() => setTvHelp(true)}
           hitSlop={10}
@@ -457,7 +498,7 @@ export function Match({
       </View>
 
       {/* Above the team buttons, so a long banner can spill over them and stay readable. */}
-      <View style={[styles.top, wide && styles.topWide]}>
+      <View style={[styles.top, wide && styles.topWide, replay.canvas && { paddingRight: replay.canvas.width > replay.canvas.height ? 176 : 112 }]}>
       {chaos && courtRule ? (
         <Pressable
           style={[styles.rule, styles.courtRule, sun && styles.sunSurface, wide && styles.ruleWide]}
@@ -582,7 +623,65 @@ export function Match({
         </Pressable>
       )}
 
-      {!focused ? null : tvHelp ? (
+      {replay.canvas && (
+        <ReplayPreview
+          canvas={replay.canvas}
+          count={replay.clips.length}
+          saving={replay.saving}
+          onClip={() => {
+            tap(settings.haptics);
+            replay.clip('🔥 HIGHLIGHT');
+          }}
+          onClose={replay.park}
+        />
+      )}
+
+      {!focused ? null : camSheet ? (
+        <Takeover
+          visible
+          emoji="🎬"
+          title={replay.on ? 'Instant Replay is on' : 'Instant Replay'}
+          body={
+            replay.error ??
+            (replay.on
+              ? 'Tap the little screen in the corner right after a great point. Big plays and the winning point save themselves.'
+              : "Hand the phone to your Hype Man (someone sitting out). They point it at the court and keep scoring as usual. Tap the little screen right after a great point: it saves the last 20–30 seconds, with the score on it. Aces, highlight shots, long rallies, body shots and the winning point save themselves.")
+          }
+          footnote={
+            replay.on
+              ? undefined
+              : 'Clips stay on this phone until you share them. Filming uses more battery, so start charged.'
+          }
+          onClose={() => setCamSheet(false)}
+        >
+          {replay.on ? (
+            <>
+              <ClipStrip clips={replay.clips} saving={replay.saving} />
+              <Button label="Keep filming" onPress={() => setCamSheet(false)} />
+              <Button label="⏹ Turn the camera off" variant="ghost" onPress={replay.stop} />
+            </>
+          ) : (
+            <>
+              <Button
+                label={replay.starting ? 'Starting…' : '🎥 Start filming'}
+                onPress={async () => {
+                  await replay.start(courtSound);
+                  setCamSheet(false);
+                }}
+              />
+              <Button
+                label={courtSound ? '🎙️ Court sound: on' : '🔇 Court sound: off'}
+                small
+                variant="secondary"
+                onPress={() => setCourtSound(!courtSound)}
+              />
+              {courtSound && (
+                <Text style={styles.camNote}>On some iPhones, recording sound makes the announcer quieter.</Text>
+              )}
+            </>
+          )}
+        </Takeover>
+      ) : tvHelp ? (
         <Takeover
           visible
           emoji="📺"
@@ -630,6 +729,8 @@ export function Match({
                   momentRallyWinner(pendingMoment, t),
                   momentPrompt(pendingMoment, names[t], spice, names[other(t)]),
                 );
+                const m = MOMENTS.find((x) => x.id === pendingMoment);
+                if (m && AUTO_CLIP.includes(m.id)) replay.clip(`${m.emoji} ${m.label.toUpperCase()}`);
                 setPendingMoment(null);
               }}
             />
@@ -681,6 +782,7 @@ export function Match({
             <View style={styles.resultHero}>
               <ResultCard ref={cardRef} match={match} />
               {wheelResult && <Text style={styles.wheelResult}>🎡 {wheelResult}</Text>}
+              <ClipStrip clips={replay.clips} saving={replay.saving} />
             </View>
           }
           onClose={() => {}}
@@ -734,6 +836,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   headerBtn: { color: colors.muted, fontSize: 16, fontWeight: '700' },
+  camNote: { color: colors.muted, fontSize: 12, textAlign: 'center' },
   subtitle: { color: colors.muted, fontSize: 13, fontWeight: '700', flexShrink: 1 },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   speaker: { fontSize: 18 },
