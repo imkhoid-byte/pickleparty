@@ -42,7 +42,8 @@ export const MOMENTS: Moment[] = [
   { id: 'net', emoji: '🥅', label: 'Into the net', ask: 'Who hit the net?', rallyGoesTo: 'other' },
   { id: 'ace', emoji: '⚡', label: 'Ace', ask: 'Who served the ace?', rallyGoesTo: 'doer' },
   { id: 'kitchen', emoji: '🍳', label: 'Kitchen fault', ask: 'Who faulted?', rallyGoesTo: 'other' },
-  { id: 'erne', emoji: '🦅', label: 'Erne / ATP', ask: 'Who hit it?', rallyGoesTo: 'doer' },
+  // Any jaw-dropper: an Erne, an ATP, an unreturnable drop.
+  { id: 'erne', emoji: '🦅', label: 'Highlight shot', ask: 'Who hit the highlight?', rallyGoesTo: 'doer' },
   { id: 'longRally', emoji: '🔁', label: '10+ rally', ask: 'Who won the rally?', rallyGoesTo: 'doer' },
   { id: 'bodyShot', emoji: '🎯', label: 'Body shot', ask: 'Who hit the body shot?', rallyGoesTo: 'doer' },
   { id: 'wayOut', emoji: '🚀', label: 'Way out', ask: 'Who hit it out?', rallyGoesTo: 'other' },

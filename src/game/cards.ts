@@ -98,6 +98,7 @@ export const CARDS: Card[] = [
     'Play the next rally on one foot as much as you can.',
     'Give your partner a pep talk like they are about to play the championship.',
     'Play the next rally with your free hand behind your back.',
+    'Drop Zone: your next shot from the back of the court has to be a drop. Miss the kitchen and {sips:1}.',
   ]),
   ...c('classic', 'rule', [
     'Nobody can say "out". Say "pickle" instead. Violators {sips:1}.',
@@ -144,6 +145,7 @@ export const CARDS: Card[] = [
     'Speak only in pickle puns until you win a rally. Every miss: {sips:1}.',
     'Next rally, if you lose it you {finish}.',
     'Challenge an opponent to a dink-off. First to miss must {sips:3}.',
+    'Drop Shot Duel: you vs. an opponent, drops only from the baseline. First to miss the kitchen must {sips:2}.',
   ]),
   ...c('kitchen', 'rule', [
     'Ernes are worth 2 points this game.',
