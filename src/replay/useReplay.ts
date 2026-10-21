@@ -12,6 +12,9 @@ export interface Clip {
   file: File;
 }
 
+/** Whether this device can film highlights (the web version, for now). */
+export const replaySupported = () => Platform.OS === 'web' && ReplayRecorder.supported();
+
 /** Two clips this close together are the same moment (a tap, then the moment's auto-clip). */
 const SAME_MOMENT_MS = 6000;
 
@@ -20,7 +23,7 @@ const SAME_MOMENT_MS = 6000;
  * how many are still being saved. Web only for now; `supported` is false elsewhere.
  */
 export function useReplay() {
-  const [supported] = useState(() => Platform.OS === 'web' && ReplayRecorder.supported());
+  const [supported] = useState(replaySupported);
   const recorder = useRef<ReplayRecorder | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [starting, setStarting] = useState(false);
@@ -30,8 +33,9 @@ export function useReplay() {
   const lastClipAt = useRef(0);
   const urls = useRef<string[]>([]);
 
-  const start = useCallback(async (sound: boolean) => {
-    if (recorder.current) return;
+  /** Start filming. True once the camera is rolling. */
+  const start = useCallback(async (sound: boolean): Promise<boolean> => {
+    if (recorder.current) return true;
     setError(null);
     setStarting(true);
     const r = new ReplayRecorder();
@@ -39,6 +43,7 @@ export function useReplay() {
     try {
       await r.start(sound);
       setCanvas(r.canvas);
+      return true;
     } catch (e) {
       r.stop();
       recorder.current = null;
@@ -48,6 +53,7 @@ export function useReplay() {
           ? 'The camera was blocked. Allow camera access for this site in your browser settings, then try again.'
           : "Couldn't start the camera on this device.",
       );
+      return false;
     } finally {
       setStarting(false);
     }

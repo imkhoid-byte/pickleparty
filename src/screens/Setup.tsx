@@ -4,6 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useApp } from '../AppState';
 import { Format, ScoringSystem, Team } from '../game/scoring';
 import { goBack, startMatch } from '../navigation';
+import { replaySupported } from '../replay/useReplay';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 
@@ -58,6 +59,12 @@ const SPOOKY_NAMES = [
 type NameStyle = 'teams' | 'couples' | 'spooky';
 
 /** Shown the first time someone sets up a match (and again from "How does it work?"). */
+const REPLAY_STEP = {
+  emoji: '🎬',
+  title: 'Catch the highlights',
+  body: 'Tap ● Film it beside the score and point the phone at the court (or prop it up). Aces, highlight shots and the winning point save themselves as clips with the score on them. Tap the little camera to save any other great point.',
+};
+
 const HOW_IT_WORKS = [
   {
     emoji: '📱',
@@ -115,6 +122,9 @@ export function Setup() {
   const [target, setTarget] = useState(11);
   const [firstServer, setFirstServer] = useState<Team>(0);
   const [howTo, setHowTo] = useState<number | null>(() => (settings.seenHowTo ? null : 0));
+  // Instant Replay works where the browser can film (the web version for now).
+  const [canFilm] = useState(replaySupported);
+  const steps = canFilm ? [...HOW_IT_WORKS, REPLAY_STEP] : HOW_IT_WORKS;
   const partyStyle: PartyStyle = settings.chaos ? 'chaos' : settings.calm ? 'calm' : 'party';
   const pickScoring = (next: ScoringSystem) => {
     setScoring(next);
@@ -195,6 +205,26 @@ export function Setup() {
       </View>
       <Text style={styles.hint}>{PARTY_STYLES.find((p) => p.id === partyStyle)?.hint}</Text>
 
+      {canFilm && (
+        <>
+          <Label>Highlights</Label>
+          <View style={styles.row}>
+            <Chip
+              label="🎬 Film the best points"
+              selected={settings.filmHighlights}
+              color={colors.danger}
+              onPress={() => updateSettings({ filmHighlights: true })}
+            />
+            <Chip label="No camera" selected={!settings.filmHighlights} onPress={() => updateSettings({ filmHighlights: false })} />
+          </View>
+          <Text style={styles.hint}>
+            {settings.filmHighlights
+              ? 'The camera starts with the game. Point the phone at the court or prop it up: aces, highlight shots and the winning point save themselves as clips to share.'
+              : 'Turn it on to film the game: big plays save themselves as clips, with the score on them.'}
+          </Text>
+        </>
+      )}
+
       <Label>First serve</Label>
       <View style={styles.row}>
         {([0, 1] as Team[]).map((t) => (
@@ -216,13 +246,13 @@ export function Setup() {
       {howTo !== null && (
         <Takeover
           visible
-          emoji={HOW_IT_WORKS[howTo].emoji}
-          title={HOW_IT_WORKS[howTo].title}
-          body={HOW_IT_WORKS[howTo].body}
-          footnote={`${howTo + 1} of ${HOW_IT_WORKS.length}`}
+          emoji={steps[howTo].emoji}
+          title={steps[howTo].title}
+          body={steps[howTo].body}
+          footnote={`${howTo + 1} of ${steps.length}`}
           onClose={closeHowTo}
         >
-          {howTo < HOW_IT_WORKS.length - 1 ? (
+          {howTo < steps.length - 1 ? (
             <>
               <Button label="Next" onPress={() => setHowTo(howTo + 1)} />
               <Button label="Skip" variant="ghost" onPress={closeHowTo} />

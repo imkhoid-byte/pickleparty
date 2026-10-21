@@ -35,6 +35,12 @@ export interface Settings {
   seenHowTo: boolean;
   /** How many matches have shown the "turn sideways for TV mode" tip (it shows for the first two). */
   tvTipsShown: number;
+  /** Instant Replay: start filming when a match starts (the group's last choice). */
+  filmHighlights: boolean;
+  /** Record the court's sound with the clips. */
+  replaySound: boolean;
+  /** How many times the "tap the camera after a great point" tip has shown (the first two). */
+  replayTipsShown: number;
   /** Which announcer personality reads the prompts. */
   announcer: AnnouncerId;
   /** When the free Pro trial began (first launch). */
@@ -75,6 +81,9 @@ export const DEFAULT_SETTINGS: Settings = {
   chaos: false,
   seenHowTo: false,
   tvTipsShown: 0,
+  filmHighlights: false,
+  replaySound: false,
+  replayTipsShown: 0,
   announcer: 'squeaky',
   trialStartedAt: null,
   proCached: false,

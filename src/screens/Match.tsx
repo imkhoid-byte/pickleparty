@@ -148,7 +148,10 @@ export function Match({
   // Instant Replay: film the court, save great points.
   const replay = useReplay();
   const [camSheet, setCamSheet] = useState(false);
-  const [courtSound, setCourtSound] = useState(false);
+  // After a big play with the camera off: "Film it" lights up and the pop-up suggests it.
+  const [nudge, setNudge] = useState(false);
+  // The first times filming starts: point at the preview, where clips are saved.
+  const [replayTip, setReplayTip] = useState(false);
   // The first couple of matches, a quick tip that sideways is the big-screen mode.
   const [tvTip, setTvTip] = useState(() => settings.tvTipsShown < 2 && width <= height);
   useEffect(() => {
@@ -276,6 +279,43 @@ export function Match({
     // Only when the game itself changes; the saved copy changing must not loop back here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, houseRule, courtRule]);
+
+  /** The camera started (or didn't): show the first-time tip, and remember the choice for the next game. */
+  const rolling = (ok: boolean) => {
+    if (!ok) return setCamSheet(true);
+    const firstTimes = settings.replayTipsShown < 2;
+    if (firstTimes) setReplayTip(true);
+    updateSettings({ filmHighlights: true, ...(firstTimes ? { replayTipsShown: settings.replayTipsShown + 1 } : {}) });
+  };
+  /** Start filming (one tap, no questions), and remember it for the next game. */
+  const filmIt = async () => {
+    setNudge(false);
+    // It failed before: the sheet says why and has a retry.
+    if (replay.error) return setCamSheet(true);
+    rolling(await replay.start(settings.replaySound));
+  };
+  const stopFilming = () => {
+    replay.stop();
+    updateSettings({ filmHighlights: false });
+  };
+  // The group chose to film: the camera starts with the game.
+  useEffect(() => {
+    if (settings.filmHighlights && replay.supported) replay.start(settings.replaySound).then(rolling);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!replayTip) return;
+    const timer = setTimeout(() => setReplayTip(false), 7000);
+    return () => clearTimeout(timer);
+  }, [replayTip]);
+  useEffect(() => {
+    if (!nudge) return;
+    const timer = setTimeout(() => setNudge(false), 20_000);
+    return () => clearTimeout(timer);
+  }, [nudge]);
+  const nudgeLine = nudge && !replay.on ? '🎬 That deserved a replay! Tap ● Film it to catch the next one.' : undefined;
+  const wildLine = spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined;
+  const promptFootnote = [wildLine, nudgeLine].filter(Boolean).join('\n') || undefined;
 
   // The score on the video follows the game.
   useEffect(() => {
@@ -527,9 +567,25 @@ export function Match({
         </Pressable>
       )}
 
-      <Text style={[styles.call, wide && styles.callWide]} accessibilityLabel={`Score ${callScore(match)}`}>
-        {callScore(match)}
-      </Text>
+      <View style={styles.callRow}>
+        <Text style={[styles.call, wide && styles.callWide]} accessibilityLabel={`Score ${callScore(match)}`}>
+          {callScore(match)}
+        </Text>
+        {/* Instant Replay's call to action, beside the score where the Hype Man is already looking. */}
+        {replay.supported && !replay.on && (
+          <Pressable
+            onPress={filmIt}
+            disabled={replay.starting}
+            hitSlop={8}
+            style={[styles.filmIt, nudge && styles.filmItNudge]}
+            accessibilityRole="button"
+            accessibilityLabel="Film it: start Instant Replay"
+          >
+            <View style={[styles.filmDot, nudge && { backgroundColor: '#fff' }]} />
+            <Text style={[styles.filmText, nudge && { color: '#fff' }]}>{replay.starting ? 'Starting…' : 'Film it'}</Text>
+          </Pressable>
+        )}
+      </View>
       </View>
 
       <View style={[styles.courts, wide && styles.courtsWide]}>
@@ -635,6 +691,14 @@ export function Match({
           onClose={replay.park}
         />
       )}
+      {replayTip && replay.canvas && (
+        <View
+          pointerEvents="none"
+          style={[styles.replayTip, { right: 10 + (replay.canvas.width > replay.canvas.height ? 160 : 96) + 8 }]}
+        >
+          <Text style={styles.replayTipText}>Tap the camera right after a great point to save it 👉</Text>
+        </View>
+      )}
 
       {!focused ? null : camSheet ? (
         <Takeover
@@ -658,24 +722,26 @@ export function Match({
             <>
               <ClipStrip clips={replay.clips} saving={replay.saving} />
               <Button label="Keep filming" onPress={() => setCamSheet(false)} />
-              <Button label="⏹ Turn the camera off" variant="ghost" onPress={replay.stop} />
+              <Button label="⏹ Turn the camera off" variant="ghost" onPress={stopFilming} />
             </>
           ) : (
             <>
               <Button
                 label={replay.starting ? 'Starting…' : '🎥 Start filming'}
                 onPress={async () => {
-                  await replay.start(courtSound);
-                  setCamSheet(false);
+                  if (await replay.start(settings.replaySound)) {
+                    setCamSheet(false);
+                    updateSettings({ filmHighlights: true });
+                  }
                 }}
               />
               <Button
-                label={courtSound ? '🎙️ Court sound: on' : '🔇 Court sound: off'}
+                label={settings.replaySound ? '🎙️ Court sound: on' : '🔇 Court sound: off'}
                 small
                 variant="secondary"
-                onPress={() => setCourtSound(!courtSound)}
+                onPress={() => updateSettings({ replaySound: !settings.replaySound })}
               />
-              {courtSound && (
+              {settings.replaySound && (
                 <Text style={styles.camNote}>On some iPhones, recording sound makes the announcer quieter.</Text>
               )}
             </>
@@ -730,7 +796,10 @@ export function Match({
                   momentPrompt(pendingMoment, names[t], spice, names[other(t)]),
                 );
                 const m = MOMENTS.find((x) => x.id === pendingMoment);
-                if (m && AUTO_CLIP.includes(m.id)) replay.clip(`${m.emoji} ${m.label.toUpperCase()}`);
+                if (m && AUTO_CLIP.includes(m.id)) {
+                  if (replay.on) replay.clip(`${m.emoji} ${m.label.toUpperCase()}`);
+                  else if (replay.supported) setNudge(true);
+                }
                 setPendingMoment(null);
               }}
             />
@@ -743,7 +812,7 @@ export function Match({
           title={prompt.title}
           body={prompt.body}
           accent={prompt.lockedPack ? colors.sky : prompt.big ? colors.orange : colors.pickle}
-          footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
+          footnote={promptFootnote}
           speaker={speaker}
           onClose={() => setPrompt(null)}
         >
@@ -783,6 +852,11 @@ export function Match({
               <ResultCard ref={cardRef} match={match} />
               {wheelResult && <Text style={styles.wheelResult}>🎡 {wheelResult}</Text>}
               <ClipStrip clips={replay.clips} saving={replay.saving} />
+              {replay.supported && !replay.on && replay.clips.length === 0 && (
+                <Text style={styles.filmNext}>
+                  🎬 Film the next one: aces, highlight shots and the winning point save themselves as clips to share.
+                </Text>
+              )}
             </View>
           }
           onClose={() => {}}
@@ -795,7 +869,19 @@ export function Match({
           {roundRobin ? (
             <Button label="🏟️ Back to the Round Robin" variant="secondary" onPress={back} />
           ) : (
-            <Button label="🔁 Rematch" variant="secondary" onPress={rematch} />
+            <>
+              {replay.supported && !replay.on && replay.clips.length === 0 && (
+                <Button
+                  label="🎬 Rematch on camera"
+                  variant="secondary"
+                  onPress={() => {
+                    rematch();
+                    filmIt();
+                  }}
+                />
+              )}
+              <Button label="🔁 Rematch" variant="secondary" onPress={rematch} />
+            </>
           )}
           <View style={styles.resultRow}>
             <Button
@@ -814,7 +900,7 @@ export function Match({
           emoji={prompt.emoji}
           title={prompt.title}
           body={prompt.body}
-          footnote={spice === 'wild' ? 'Not feeling the act? Skip it, no questions asked.' : undefined}
+          footnote={promptFootnote}
           duration={bannerTime(prompt)}
           speaker={speaker}
           wide={wide}
@@ -837,6 +923,36 @@ const styles = StyleSheet.create({
   },
   headerBtn: { color: colors.muted, fontSize: 16, fontWeight: '700' },
   camNote: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  // The score and "Film it" side by side, centered together, so a long score never runs into it.
+  callRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  filmIt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.danger,
+    backgroundColor: 'rgba(255,90,90,0.12)',
+  },
+  filmItNudge: { backgroundColor: colors.danger, transform: [{ scale: 1.08 }] },
+  filmDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
+  filmText: { color: colors.danger, fontSize: 14, fontWeight: '900' },
+  filmNext: { color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: 4 },
+  // Beside the camera preview, over the house rule for a few seconds (never over the score).
+  replayTip: {
+    position: 'absolute',
+    top: 60,
+    maxWidth: 190,
+    backgroundColor: colors.sky,
+    borderRadius: radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    zIndex: 16,
+    elevation: 16,
+  },
+  replayTipText: { color: colors.bg, fontSize: 14, fontWeight: '800' },
   subtitle: { color: colors.muted, fontSize: 13, fontWeight: '700', flexShrink: 1 },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   speaker: { fontSize: 18 },
