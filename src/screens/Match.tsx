@@ -688,6 +688,7 @@ export function Match({
             tap(settings.haptics);
             replay.clip('🔥 HIGHLIGHT');
           }}
+          onAttach={replay.attach}
           onClose={replay.park}
         />
       )}

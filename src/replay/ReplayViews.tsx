@@ -7,6 +7,7 @@ export function ReplayPreview(_: {
   count: number;
   saving: number;
   onClip: () => void;
+  onAttach: (host: HTMLElement) => void;
   onClose: () => void;
 }) {
   return null;

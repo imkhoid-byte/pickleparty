@@ -88,6 +88,9 @@ export function useReplay() {
     if (recorder.current) recorder.current.overlay = o;
   }, []);
 
+  /** The preview opened: show the camera in it. */
+  const attach = useCallback((host: HTMLElement) => recorder.current?.attach(host), []);
+
   /** The preview closed: keep drawing off screen. */
   const park = useCallback(() => recorder.current?.park(), []);
 
@@ -100,7 +103,7 @@ export function useReplay() {
     [],
   );
 
-  return { supported, on: canvas !== null, canvas, starting, error, clips, saving, start, stop, clip, setOverlay, park };
+  return { supported, on: canvas !== null, canvas, starting, error, clips, saving, start, stop, clip, setOverlay, attach, park };
 }
 
 export type Replay = ReturnType<typeof useReplay>;

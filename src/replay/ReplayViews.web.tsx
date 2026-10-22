@@ -15,12 +15,16 @@ export function ReplayPreview({
   count,
   saving,
   onClip,
+  onAttach,
   onClose,
 }: {
+  /** What's recorded (its shape sets the preview's). */
   canvas: HTMLCanvasElement;
   count: number;
   saving: number;
   onClip: () => void;
+  /** Put the camera and canvas into the preview. */
+  onAttach: (host: HTMLElement) => void;
   /** The preview is going away: the canvas has to keep drawing somewhere. */
   onClose: () => void;
 }) {
@@ -28,9 +32,9 @@ export function ReplayPreview({
   useEffect(() => {
     const el = host.current;
     if (!el) return;
-    el.append(canvas);
+    onAttach(el);
     return onClose;
-  }, [canvas, onClose]);
+  }, [canvas, onAttach, onClose]);
   const sideways = canvas.width > canvas.height;
   return (
     <Pressable

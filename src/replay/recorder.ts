@@ -17,6 +17,12 @@ const POST_ROLL = 2500;
 const FLASH_MS = 4000;
 /** The longest side of the recorded video, in pixels. */
 const MAX_SIDE = 1280;
+/** No new camera frame for this long (after the phone turns, say): get the camera going again. */
+const STALL_MS = 2500;
+/** Don't restart the camera more often than this. */
+const RESTART_GAP = 6000;
+
+const CAMERA: MediaTrackConstraints = { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } };
 
 export interface Overlay {
   names: [string, string];
@@ -66,6 +72,12 @@ export class ReplayRecorder {
   private frame = 0;
   private flash: { text: string; until: number } | null = null;
   private stopped = false;
+  // Watching for a camera that stalled: the last frame seen, when it last moved on, the last restart.
+  private lastVideoTime = -1;
+  private lastFrameAt = 0;
+  private lastCheckAt = 0;
+  private lastRestartAt = 0;
+  private restarting = false;
 
   /** Whether this browser can film and record (the web version on a recent phone or computer). */
   static supported(): boolean {
@@ -80,8 +92,9 @@ export class ReplayRecorder {
 
   constructor() {
     this.mimeType = MIME_TYPES.find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
-    // Safari only keeps a video's frames fresh while it's in the page, so the camera and
-    // canvas live in a hidden holder until the preview shows the canvas.
+    // Safari only keeps a camera's frames coming while its video is in the page, and can stop
+    // a hidden one when the phone turns. So the camera video sits in the preview, under the
+    // canvas (attach), and in a hidden holder only while there's no preview (park).
     this.holder = document.createElement('div');
     this.holder.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;';
     this.video = document.createElement('video');
@@ -89,19 +102,17 @@ export class ReplayRecorder {
     this.video.playsInline = true;
     this.video.setAttribute('playsinline', '');
     this.video.setAttribute('muted', '');
+    this.video.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;';
     this.canvas = document.createElement('canvas');
     // Sized by the preview it's shown in.
-    this.canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    this.canvas.style.cssText = 'position:relative;width:100%;height:100%;object-fit:cover;display:block;';
     this.holder.append(this.video, this.canvas);
     document.body.append(this.holder);
   }
 
   /** Start the camera (the back one) and start keeping the last 20–30 seconds. */
   async start(sound: boolean): Promise<void> {
-    this.camera = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: sound,
-    });
+    this.camera = await navigator.mediaDevices.getUserMedia({ video: CAMERA, audio: sound });
     if (this.stopped) {
       this.camera.getTracks().forEach((t) => t.stop());
       return;
@@ -112,7 +123,11 @@ export class ReplayRecorder {
     const scale = Math.min(1, MAX_SIDE / Math.max(this.video.videoWidth, this.video.videoHeight));
     this.canvas.width = Math.round(this.video.videoWidth * scale);
     this.canvas.height = Math.round(this.video.videoHeight * scale);
+    this.lastFrameAt = Date.now();
     this.draw();
+    window.addEventListener('orientationchange', this.wake);
+    window.addEventListener('resize', this.wake);
+    document.addEventListener('visibilitychange', this.wake);
     this.output = this.canvas.captureStream(30);
     this.camera.getAudioTracks().forEach((t) => this.output!.addTrack(t));
     this.startSegment();
@@ -147,15 +162,67 @@ export class ReplayRecorder {
       if (s.rec.state !== 'inactive') s.rec.stop();
     });
     this.segments = [];
+    window.removeEventListener('orientationchange', this.wake);
+    window.removeEventListener('resize', this.wake);
+    document.removeEventListener('visibilitychange', this.wake);
     this.camera?.getTracks().forEach((t) => t.stop());
     this.output?.getTracks().forEach((t) => t.stop());
     this.holder.remove();
+    this.video.remove();
     this.canvas.remove();
   }
 
-  /** Put the canvas back in the hidden holder (when the preview closes), so it keeps drawing. */
+  /** Show the camera in the preview: the video underneath, the canvas (camera plus score) on top. */
+  attach(host: HTMLElement) {
+    if (!this.stopped) host.append(this.video, this.canvas);
+  }
+
+  /** The preview closed: back to the hidden holder, so the camera and drawing keep going. */
   park() {
-    if (!this.stopped) this.holder.append(this.canvas);
+    if (!this.stopped) this.holder.append(this.video, this.canvas);
+  }
+
+  /** The phone turned or the app came back: make sure the camera is still playing. */
+  private wake = () => {
+    if (this.stopped) return;
+    setTimeout(() => this.video.play().catch(() => {}), 300);
+  };
+
+  /**
+   * Called as the canvas draws: if the camera paused, play it again; if it ended or has
+   * stopped sending frames (Safari, after the phone turns), start it again. Clips are
+   * recorded from the canvas, so a fresh camera doesn't interrupt them.
+   */
+  private keepCameraGoing(now: number) {
+    if (now - this.lastCheckAt < 500 || this.restarting) return;
+    this.lastCheckAt = now;
+    if (this.video.paused) this.video.play().catch(() => {});
+    const track = this.camera?.getVideoTracks()[0];
+    const ended = !track || track.readyState === 'ended';
+    if ((ended || now - this.lastFrameAt > STALL_MS) && now - this.lastRestartAt > RESTART_GAP) this.restartCamera();
+  }
+
+  private async restartCamera() {
+    this.restarting = true;
+    this.lastRestartAt = Date.now();
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ video: CAMERA });
+      if (this.stopped) {
+        fresh.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      // Keep the court sound (recorded separately), swap in the new camera.
+      this.camera?.getVideoTracks().forEach((t) => t.stop());
+      const sound = this.camera?.getAudioTracks().filter((t) => t.readyState === 'live') ?? [];
+      this.camera = new MediaStream([...fresh.getVideoTracks(), ...sound]);
+      this.video.srcObject = this.camera;
+      await this.video.play();
+      this.lastFrameAt = Date.now();
+    } catch {
+      // Try again at the next check.
+    } finally {
+      this.restarting = false;
+    }
   }
 
   private startSegment() {
@@ -196,8 +263,18 @@ export class ReplayRecorder {
   private draw = () => {
     if (this.stopped) return;
     const ctx = this.canvas.getContext('2d');
+    const now = Date.now();
+    const newFrame = this.video.currentTime !== this.lastVideoTime;
+    if (newFrame) {
+      this.lastVideoTime = this.video.currentTime;
+      this.lastFrameAt = now;
+    }
+    this.keepCameraGoing(now);
     const { videoWidth: vw, videoHeight: vh } = this.video;
-    if (ctx && vw && vh) {
+    const live = this.camera?.getVideoTracks()[0]?.readyState === 'live';
+    // Only draw a new frame from a live camera: a stalled or ended one gives black frames,
+    // so while the camera recovers the last good frame stays.
+    if (ctx && vw && vh && newFrame && live && this.video.readyState >= 2) {
       const { width: cw, height: ch } = this.canvas;
       // Fill the frame even if the phone turned after filming started.
       const s = Math.max(cw / vw, ch / vh);
