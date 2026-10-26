@@ -87,18 +87,101 @@ function settingsFor(id: AnnouncerId) {
 
 let speaking = false;
 
-export function speak(text: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
+/** The browser's speech engine (the web version), if there is one. */
+const browserSpeech = () =>
+  Platform.OS === 'web' && typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+
+/**
+ * iPhone Safari can be left paused after an interruption (the camera starting, a
+ * call, switching apps), and then holds every new line forever. Unpause it.
+ */
+export function wakeSpeech() {
+  const synth = browserSpeech();
   try {
-    // Safari can drop an utterance that starts right after a cancel, so only cancel when needed.
-    if (speaking) Speech.stop();
-    speaking = true;
-    const done = () => {
-      speaking = false;
-    };
-    Speech.speak(text, { ...voice, onDone: done, onStopped: done, onError: done });
+    if (synth?.paused) synth.resume();
   } catch {
-    speaking = false;
+    // ignore
   }
+}
+
+/** Safari drops a line that starts right after a cancel, so give it a moment. */
+const AFTER_CANCEL_MS = 80;
+/** A line that hasn't started by now was dropped: try it once more. */
+const START_TIMEOUT_MS = 2500;
+/** Each line gets a number, so a retry or a late start for an old line is ignored. */
+let lineId = 0;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let lastCancelAt = -Infinity;
+
+/** Stop the browser's speech, noting when (the next line has to wait a moment after). */
+function cancelSpeech(synth: SpeechSynthesis) {
+  synth.cancel();
+  lastCancelAt = Date.now();
+}
+
+export function speak(text: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
+  const synth = browserSpeech();
+  if (!synth) {
+    try {
+      if (speaking) Speech.stop();
+      speaking = true;
+      const done = () => {
+        speaking = false;
+      };
+      Speech.speak(text, { ...voice, onDone: done, onStopped: done, onError: done });
+    } catch {
+      speaking = false;
+    }
+    return;
+  }
+  // The web: go by what the browser says it's doing, not by our own record. A line Safari
+  // cut off (when the camera started, say) never reports that it finished, and trusting a
+  // stale "still speaking" would cancel-then-speak every line after it, which Safari drops.
+  const id = ++lineId;
+  if (retryTimer) clearTimeout(retryTimer);
+  let started = false;
+  const say = () => {
+    if (id !== lineId) return;
+    try {
+      wakeSpeech();
+      Speech.speak(text, {
+        ...voice,
+        onStart: () => {
+          started = true;
+        },
+      });
+    } catch {
+      // ignore
+    }
+  };
+  try {
+    wakeSpeech();
+    if (synth.speaking || synth.pending) cancelSpeech(synth);
+    const wait = lastCancelAt + AFTER_CANCEL_MS - Date.now();
+    if (wait > 0) setTimeout(say, wait);
+    else say();
+  } catch {
+    return;
+  }
+  // Nothing started: Safari dropped it or is stuck. Clear it out and say it once more.
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (started || id !== lineId) return;
+    try {
+      cancelSpeech(synth);
+      synth.resume();
+    } catch {
+      // ignore
+    }
+    setTimeout(say, AFTER_CANCEL_MS);
+  }, START_TIMEOUT_MS);
+}
+
+// Coming back to the app (or the phone being turned) can leave Safari's speech paused.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') wakeSpeech();
+  });
 }
 
 let unlocked = false;
@@ -134,7 +217,17 @@ export function unlockAudio() {
 export function hush() {
   if (pendingVoice) clearTimeout(pendingVoice);
   pendingVoice = null;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+  // Any line still waiting to start is now out of date.
+  lineId++;
+  const synth = browserSpeech();
   try {
+    // Only cancel when there's something to cancel: Safari drops a line that starts right after one.
+    if (synth) {
+      if (synth.speaking || synth.pending) cancelSpeech(synth);
+      return;
+    }
     Speech.stop();
   } catch {
     // ignore

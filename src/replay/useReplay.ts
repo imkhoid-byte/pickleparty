@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { wakeSpeech } from '../audio/announcer';
 import { Overlay, ReplayRecorder } from './recorder';
 
 export interface Clip {
@@ -43,6 +44,8 @@ export function useReplay() {
     try {
       await r.start(sound);
       setCanvas(r.canvas);
+      // Starting the camera can leave iPhone Safari's speech paused: the announcer needs it back.
+      wakeSpeech();
       return true;
     } catch (e) {
       r.stop();
