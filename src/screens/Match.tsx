@@ -538,7 +538,7 @@ export function Match({
       </View>
 
       {/* Above the team buttons, so a long banner can spill over them and stay readable. */}
-      <View style={[styles.top, wide && styles.topWide, replay.canvas && { paddingRight: replay.canvas.width > replay.canvas.height ? 176 : 112 }]}>
+      <View style={[styles.top, wide && styles.topWide, replay.canvas && { paddingRight: replay.sideways ? 176 : 112 }]}>
       {chaos && courtRule ? (
         <Pressable
           style={[styles.rule, styles.courtRule, sun && styles.sunSurface, wide && styles.ruleWide]}
@@ -682,6 +682,7 @@ export function Match({
       {replay.canvas && (
         <ReplayPreview
           canvas={replay.canvas}
+          sideways={replay.sideways}
           count={replay.clips.length}
           saving={replay.saving}
           onClip={() => {
@@ -695,7 +696,7 @@ export function Match({
       {replayTip && replay.canvas && (
         <View
           pointerEvents="none"
-          style={[styles.replayTip, { right: 10 + (replay.canvas.width > replay.canvas.height ? 160 : 96) + 8 }]}
+          style={[styles.replayTip, { right: 10 + (replay.sideways ? 160 : 96) + 8 }]}
         >
           <Text style={styles.replayTipText}>Tap the camera right after a great point to save it 👉</Text>
         </View>

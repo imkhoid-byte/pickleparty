@@ -27,6 +27,8 @@ export function useReplay() {
   const [supported] = useState(replaySupported);
   const recorder = useRef<ReplayRecorder | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  /** The video's shape: it turns when the phone does. */
+  const [sideways, setSideways] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -43,6 +45,8 @@ export function useReplay() {
     recorder.current = r;
     try {
       await r.start(sound);
+      r.onReshape = setSideways;
+      setSideways(r.sideways);
       setCanvas(r.canvas);
       // Starting the camera can leave iPhone Safari's speech paused: the announcer needs it back.
       wakeSpeech();
@@ -106,7 +110,7 @@ export function useReplay() {
     [],
   );
 
-  return { supported, on: canvas !== null, canvas, starting, error, clips, saving, start, stop, clip, setOverlay, attach, park };
+  return { supported, on: canvas !== null, canvas, sideways, starting, error, clips, saving, start, stop, clip, setOverlay, attach, park };
 }
 
 export type Replay = ReturnType<typeof useReplay>;

@@ -4,6 +4,7 @@ import type { Clip } from './useReplay';
 
 export function ReplayPreview(_: {
   canvas: HTMLCanvasElement;
+  sideways: boolean;
   count: number;
   saving: number;
   onClip: () => void;

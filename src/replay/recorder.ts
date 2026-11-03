@@ -21,6 +21,8 @@ const MAX_SIDE = 1280;
 const STALL_MS = 2500;
 /** Don't restart the camera more often than this. */
 const RESTART_GAP = 6000;
+/** The camera has to stay turned this long before the video turns with it (not mid-rotation). */
+const TURN_SETTLE_MS = 600;
 
 const CAMERA: MediaTrackConstraints = { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } };
 
@@ -78,6 +80,10 @@ export class ReplayRecorder {
   private lastCheckAt = 0;
   private lastRestartAt = 0;
   private restarting = false;
+  /** When the camera's picture first came out a different shape from the video (the phone turned). */
+  private turnedSince = 0;
+  /** Told when the video changes shape, upright or sideways, so the preview can follow. */
+  onReshape: ((sideways: boolean) => void) | null = null;
 
   /** Whether this browser can film and record (the web version on a recent phone or computer). */
   static supported(): boolean {
@@ -120,18 +126,53 @@ export class ReplayRecorder {
     this.video.srcObject = this.camera;
     await this.video.play();
     if (!this.video.videoWidth) await new Promise((resolve) => this.video.addEventListener('loadedmetadata', resolve, { once: true }));
-    const scale = Math.min(1, MAX_SIDE / Math.max(this.video.videoWidth, this.video.videoHeight));
-    this.canvas.width = Math.round(this.video.videoWidth * scale);
-    this.canvas.height = Math.round(this.video.videoHeight * scale);
+    this.fitCanvas();
     this.lastFrameAt = Date.now();
     this.draw();
     window.addEventListener('orientationchange', this.wake);
     window.addEventListener('resize', this.wake);
     document.addEventListener('visibilitychange', this.wake);
+    this.startRecording();
+  }
+
+  /** Upright or sideways: the shape of the video being recorded. */
+  get sideways() {
+    return this.canvas.width > this.canvas.height;
+  }
+
+  /** Size the canvas to the camera's picture (upright or sideways), at most MAX_SIDE. */
+  private fitCanvas() {
+    const { videoWidth: vw, videoHeight: vh } = this.video;
+    const scale = Math.min(1, MAX_SIDE / Math.max(vw, vh));
+    this.canvas.width = Math.round(vw * scale);
+    this.canvas.height = Math.round(vh * scale);
+  }
+
+  /** Record the canvas (plus the court sound), keeping the last 20–30 seconds. */
+  private startRecording() {
     this.output = this.canvas.captureStream(30);
-    this.camera.getAudioTracks().forEach((t) => this.output!.addTrack(t));
+    this.camera?.getAudioTracks().forEach((t) => this.output!.addTrack(t));
     this.startSegment();
+    if (this.ticker) clearInterval(this.ticker);
     this.ticker = setInterval(() => this.startSegment(), SEGMENT_EVERY);
+  }
+
+  /**
+   * The phone turned: the video turns with it. A recording can't change shape partway, so
+   * the ones running are let go and new ones start in the new shape (a clip saved in the
+   * next few seconds is shorter, as it only has what was filmed since the turn).
+   */
+  private reshape() {
+    this.segments.forEach((s) => {
+      clearTimeout(s.expire);
+      if (s.rec.state !== 'inactive') s.rec.stop();
+    });
+    this.segments = [];
+    // The court sound belongs to the camera and carries on; only the old video track stops.
+    this.output?.getVideoTracks().forEach((t) => t.stop());
+    this.fitCanvas();
+    this.startRecording();
+    this.onReshape?.(this.sideways);
   }
 
   /** Show a play's name on the video for a few seconds. */
@@ -272,6 +313,14 @@ export class ReplayRecorder {
     this.keepCameraGoing(now);
     const { videoWidth: vw, videoHeight: vh } = this.video;
     const live = this.camera?.getVideoTracks()[0]?.readyState === 'live';
+    // Has the camera's picture turned (upright vs sideways) and stayed that way? Turn the video too.
+    if (live && vw && vh && vw !== vh && vw > vh !== this.sideways) {
+      if (!this.turnedSince) this.turnedSince = now;
+      else if (now - this.turnedSince > TURN_SETTLE_MS) {
+        this.turnedSince = 0;
+        this.reshape();
+      }
+    } else this.turnedSince = 0;
     // Only draw a new frame from a live camera: a stalled or ended one gives black frames,
     // so while the camera recovers the last good frame stays.
     if (ctx && vw && vh && newFrame && live && this.video.readyState >= 2) {

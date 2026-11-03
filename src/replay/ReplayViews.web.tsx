@@ -12,14 +12,17 @@ import type { Clip } from './useReplay';
  */
 export function ReplayPreview({
   canvas,
+  sideways,
   count,
   saving,
   onClip,
   onAttach,
   onClose,
 }: {
-  /** What's recorded (its shape sets the preview's). */
+  /** What's recorded. */
   canvas: HTMLCanvasElement;
+  /** The video's shape, which the preview matches (it turns when the phone does). */
+  sideways: boolean;
   count: number;
   saving: number;
   onClip: () => void;
@@ -35,7 +38,6 @@ export function ReplayPreview({
     onAttach(el);
     return onClose;
   }, [canvas, onAttach, onClose]);
-  const sideways = canvas.width > canvas.height;
   return (
     <Pressable
       onPress={onClip}
