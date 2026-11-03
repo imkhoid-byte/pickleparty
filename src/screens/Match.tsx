@@ -11,23 +11,26 @@ import { APP_LINK, HASHTAG } from '../config';
 import { scoreCallout, spokenScore } from '../game/callout';
 import { CARD_KIND_LABEL, Card as PartyCard, PACKS, addressCard, drawCard, drawWithTeaser } from '../game/cards';
 import {
-  MOMENTS,
   MomentId,
-  courtRuleDue,
-  courtRulePrompt,
-  pointsUntilNextRule,
-  ruleBrokenPrompt,
+  MOMENTS,
   PartyPrompt,
   WATER_BREAK,
+  addToTab,
+  courtRuleDue,
+  courtRulePrompt,
+  lastCallPrompt,
   momentPrompt,
   momentRallyWinner,
+  pointsUntilNextRule,
   promptForEvents,
+  ruleBrokenPrompt,
   spinLosersWheel,
+  switchPrompt,
   waterBreakDue,
 } from '../game/party';
 import type { RRLink } from '../game/roundRobin';
 import { MatchConfig, MatchState, Team, callScore, newMatch, other, rallyWonBy, undo } from '../game/scoring';
-import { renderPenalty } from '../game/spice';
+import { isAlcoholic, renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import { ClipStrip, ReplayPreview } from '../replay/ReplayViews';
@@ -187,6 +190,8 @@ export function Match({
 
   // Chaos Rules: a Court Rule (instead of the house rule) that changes every few points.
   const chaos = settings.chaos;
+  // Party Rules: quick games, switch ends at halfway; with drinking on, the Bar Tab.
+  const partyRules = !!config.partyRules;
   const [courtRule, setCourtRule] = useState<PartyCard | null>(() =>
     chaos ? (courtRules.find((c) => c.id === resumed?.courtRuleId) ?? drawCard(courtRules)) : null,
   );
@@ -210,9 +215,17 @@ export function Match({
   const [lastLoser, setLastLoser] = useState<Team | null>(null);
 
   const spice = settings.spice;
+  // Penalties go on the Bar Tab (Party Rules, drinking on) instead of being drunk mid-game.
+  const useTab = partyRules && isAlcoholic(spice);
   // Rendered once per rule so random penalties (exercises, Wild acts) don't change on every rally.
-  const houseRuleText = useMemo(() => (houseRule ? renderPenalty(houseRule.text, spice) : ''), [houseRule, spice]);
-  const courtRuleText = useMemo(() => (courtRule ? renderPenalty(courtRule.text, spice) : ''), [courtRule, spice]);
+  const houseRuleText = useMemo(
+    () => (houseRule ? renderPenalty(houseRule.text, spice, Math.random, { tab: useTab }) : ''),
+    [houseRule, spice, useTab],
+  );
+  const courtRuleText = useMemo(
+    () => (courtRule ? renderPenalty(courtRule.text, spice, Math.random, { tab: useTab }) : ''),
+    [courtRule, spice, useTab],
+  );
   const newCourtRule = () => drawCard(courtRules, courtRule ? [courtRule.id] : []);
   const names = config.teamNames;
   const audioOn = settings.sound || settings.voice;
@@ -334,19 +347,37 @@ export function Match({
    */
   const onRally = (team: Team, moment?: PartyPrompt) => {
     if (match.winner !== null) return;
-    const { state, events } = rallyWonBy(match, team);
-    setMatch(state);
+    const won = rallyWonBy(match, team);
+    const { events } = won;
+    let state = won.state;
     tap(settings.haptics, Haptics.ImpactFeedbackStyle.Medium);
     setLastLoser(other(team));
-    const p = promptForEvents(events, state, spice, Math.random, { calm: settings.calm });
+    // The "film the next one" nudge belongs to the play that earned it, not the ones after.
+    setNudge(false);
+    const p = promptForEvents(events, state, spice, Math.random, { calm: settings.calm, tab: useTab });
     // A new Court Rule changes how the next rally is played, so it outranks the everyday prompts.
     let rulePrompt: PartyPrompt | null = null;
     if (chaos && courtRuleDue(match, state)) {
       const rule = newCourtRule();
       setCourtRule(rule);
-      if (rule) rulePrompt = courtRulePrompt(rule.text, spice);
+      if (rule) rulePrompt = courtRulePrompt(rule.text, spice, { tab: useTab });
     }
-    const next = p?.big ? p : (moment ?? rulePrompt ?? p);
+    let next = p?.big ? p : (moment ?? rulePrompt ?? p);
+    // Party Rules: the prompt's sips go on the Bar Tab, paid at halfway (Switch & Sip) and at
+    // the end (Last Call), when everyone walks past the bench anyway.
+    if (partyRules) {
+      let tab = addToTab(state.tab ?? [0, 0], useTab ? next?.tab : undefined);
+      const over = events.find((e) => e.type === 'gameOver');
+      if (over && over.type === 'gameOver') {
+        if (useTab) next = lastCallPrompt(tab, over.winner, names, over.pickled);
+        tab = [0, 0];
+      } else if (events.some((e) => e.type === 'switchEnds')) {
+        next = switchPrompt(tab, names, useTab);
+        tab = [0, 0];
+      }
+      state = { ...state, tab };
+    }
+    setMatch(state);
     // The score comes first: players need it before the next serve, and the party
     // line can run long (simulated: late score calls drop from 16% of rallies to 1%).
     const call = callout(scoreCallout(match, state));
@@ -364,6 +395,16 @@ export function Match({
     }
   };
 
+  /** Add to (or take off) a team's Bar Tab by hand: a card or house rule penalty, or a fix. */
+  const changeTab = (t: Team, by: number) => {
+    tap(settings.haptics);
+    setMatch((m) => {
+      const tab = [...(m.tab ?? [0, 0])] as [number, number];
+      tab[t] = Math.max(0, tab[t] + by);
+      return { ...m, tab };
+    });
+  };
+
   const onDraw = () => {
     // Court Rules come round on their own with Chaos Rules; the button draws the rest.
     const drawn = drawWithTeaser(
@@ -379,7 +420,7 @@ export function Match({
     show({
       emoji: locked ? '🔒' : '🃏',
       title: locked ? `Sneak peek: ${pack?.name}` : CARD_KIND_LABEL[card.kind],
-      body: addressCard(renderPenalty(card.text, spice), card.kind, who),
+      body: addressCard(renderPenalty(card.text, spice, Math.random, { tab: useTab }), card.kind, who),
       card: true,
       lockedPack: locked ? pack?.name : undefined,
       sound: 'whoosh',
@@ -479,9 +520,11 @@ export function Match({
     }
   };
 
-  const subtitle = `${config.format === 'doubles' ? 'Doubles' : 'Singles'} · to ${config.target} · ${
-    config.scoring === 'rally' ? 'rally' : 'side-out'
-  }`;
+  const subtitle = partyRules
+    ? `🍻 Party Rules · to ${config.target}`
+    : `${config.format === 'doubles' ? 'Doubles' : 'Singles'} · to ${config.target} · ${
+        config.scoring === 'rally' ? 'rally' : 'side-out'
+      }`;
 
   return (
     <SafeAreaView style={[styles.safe, sun && styles.sunBg]}>
@@ -618,6 +661,31 @@ export function Match({
                       } · from the ${serveSide(match)}`
                     : 'tap when this team wins a rally'}
                 </Text>
+                {/* The Bar Tab: added to by the prompts, and by hand for cards and house rules. */}
+                {useTab && (
+                  <View style={[styles.tabRow, wide && { justifyContent: 'center' }]}>
+                    <Text style={[styles.tabText, sun && styles.sunServeTag]}>🍺 Tab: {match.tab?.[t] ?? 0}</Text>
+                    <Pressable
+                      onPress={() => changeTab(t, -1)}
+                      disabled={!match.tab?.[t]}
+                      hitSlop={8}
+                      style={[styles.tabBtn, !match.tab?.[t] && { opacity: 0.3 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Take a sip off ${names[t]}'s tab`}
+                    >
+                      <Text style={styles.tabBtnText}>−</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => changeTab(t, 1)}
+                      hitSlop={8}
+                      style={styles.tabBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add a sip to ${names[t]}'s tab`}
+                    >
+                      <Text style={styles.tabBtnText}>＋</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
               <Text style={[styles.score, wide && bigScore, { color: teamColors[t] }]}>{match.scores[t]}</Text>
             </Pressable>
@@ -795,7 +863,7 @@ export function Match({
                 // The moment ended the rally, so it scores it too.
                 onRally(
                   momentRallyWinner(pendingMoment, t),
-                  momentPrompt(pendingMoment, names[t], spice, names[other(t)]),
+                  momentPrompt(pendingMoment, names[t], spice, names[other(t)], Math.random, { tab: useTab, whoTeam: t }),
                 );
                 const m = MOMENTS.find((x) => x.id === pendingMoment);
                 if (m && AUTO_CLIP.includes(m.id)) {
@@ -992,6 +1060,17 @@ const styles = StyleSheet.create({
   },
   teamName: { fontSize: 24, fontWeight: '900' },
   serveTag: { color: colors.muted, fontSize: 13, fontWeight: '600', marginTop: 4 },
+  tabRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  tabText: { color: colors.orange, fontSize: 15, fontWeight: '900' },
+  tabBtn: {
+    width: 30,
+    height: 26,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceHi,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtnText: { color: colors.text, fontSize: 16, fontWeight: '900', lineHeight: 18 },
   score: { fontSize: 96, fontWeight: '900', fontVariant: ['tabular-nums'] },
   moments: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   moment: {

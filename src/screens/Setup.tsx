@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useApp } from '../AppState';
-import { Format, ScoringSystem, Team } from '../game/scoring';
+import { Format, PARTY_TARGET, ScoringSystem, Team } from '../game/scoring';
+import { isAlcoholic } from '../game/spice';
 import { goBack, startMatch } from '../navigation';
 import { replaySupported } from '../replay/useReplay';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
@@ -120,6 +121,8 @@ export function Setup() {
   const [format, setFormat] = useState<Format>('doubles');
   const [scoring, setScoring] = useState<ScoringSystem>('sideout');
   const [target, setTarget] = useState(11);
+  // Party Rules: quick rally games to 7 with the Bar Tab (instead of a classic game).
+  const [party, setParty] = useState(false);
   const [firstServer, setFirstServer] = useState<Team>(0);
   const [howTo, setHowTo] = useState<number | null>(() => (settings.seenHowTo ? null : 0));
   // Instant Replay works where the browser can film (the web version for now).
@@ -127,6 +130,7 @@ export function Setup() {
   const steps = canFilm ? [...HOW_IT_WORKS, REPLAY_STEP] : HOW_IT_WORKS;
   const partyStyle: PartyStyle = settings.chaos ? 'chaos' : settings.calm ? 'calm' : 'party';
   const pickScoring = (next: ScoringSystem) => {
+    setParty(false);
     setScoring(next);
     // Rally scoring to 11 is over in about 7 minutes, so it starts at 15 (still changeable).
     if (next === 'rally' && target === 11) setTarget(15);
@@ -146,7 +150,12 @@ export function Setup() {
 
   const start = () => {
     const teamNames = names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string];
-    startMatch({ format, scoring, target, teamNames }, firstServer);
+    startMatch(
+      party
+        ? { format, scoring: 'rally', target: PARTY_TARGET, teamNames, partyRules: true }
+        : { format, scoring, target, teamNames },
+      firstServer,
+    );
   };
 
   return (
@@ -176,20 +185,33 @@ export function Setup() {
 
       <Label>Scoring</Label>
       <View style={styles.row}>
-        <Chip label="Classic side-out" selected={scoring === 'sideout'} onPress={() => pickScoring('sideout')} />
-        <Chip label="Rally scoring" selected={scoring === 'rally'} onPress={() => pickScoring('rally')} />
+        <Chip label="🍻 Party Rules" selected={party} color={colors.orange} onPress={() => setParty(true)} />
+        <Chip label="Classic side-out" selected={!party && scoring === 'sideout'} onPress={() => pickScoring('sideout')} />
+        <Chip label="Rally scoring" selected={!party && scoring === 'rally'} onPress={() => pickScoring('rally')} />
       </View>
+      {party && (
+        <Text style={styles.hint}>
+          {isAlcoholic(settings.spice)
+            ? 'Quick games: every rally scores, first to 7 (at 6–6, next point wins). Penalties go on each team’s Bar Tab instead of being drunk mid-game. At 4, switch ends and pay up at the bench. At the end, the losers settle up and rotate off; the winners stay on.'
+            : 'Quick games: every rally scores, first to 7 (at 6–6, next point wins). Switch ends at 4. The losers rotate off; the winners stay on.'}
+        </Text>
+      )}
 
-      <Label>Play to</Label>
-      <View style={styles.row}>
-        {[7, 11, 15, 21].map((n) => (
-          <Chip key={n} label={String(n)} selected={target === n} onPress={() => setTarget(n)} />
-        ))}
-      </View>
-      <Text style={styles.hint}>
-        {scoring === 'rally' ? 'Every rally scores, so games go about twice as fast. ' : ''}Win by 2. Shut out the other
-        team to PICKLE them. 🥒
-      </Text>
+      {/* Party Rules games are always to 7. */}
+      {!party && (
+        <>
+          <Label>Play to</Label>
+          <View style={styles.row}>
+            {[7, 11, 15, 21].map((n) => (
+              <Chip key={n} label={String(n)} selected={target === n} onPress={() => setTarget(n)} />
+            ))}
+          </View>
+          <Text style={styles.hint}>
+            {scoring === 'rally' ? 'Every rally scores, so games go about twice as fast. ' : ''}Win by 2. Shut out the
+            other team to PICKLE them. 🥒
+          </Text>
+        </>
+      )}
 
       <Label>Party style</Label>
       <View style={styles.row}>

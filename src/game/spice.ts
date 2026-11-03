@@ -42,6 +42,9 @@ export const WILD_ACTS = [
   'walk your partner to the baseline arm in arm',
 ];
 
+/** A big gulp ({finish}), counted in sips for the Bar Tab. */
+export const FINISH_SIPS = 3;
+
 /** For the big penalties ({finish}). */
 const WILD_FINALES = [
   'give your partner a movie-finale dip kiss',
@@ -58,8 +61,16 @@ function pick<T>(items: T[], rng: () => number): T {
  *   {sips:N}  → "take N sips" / chill exercise / wild: sips plus a partner act
  *   {finish}  → "take a big gulp" / chill big penalty / wild: gulp plus a finale
  * In Wild, only the first penalty in a text gets an act, so prompts stay short.
+ * With `tab` (Party Rules), sips go on the Bar Tab instead of being drunk mid-game:
+ * "put 2 on the tab", and a big gulp is 3 on the tab.
  */
-export function renderPenalty(text: string, spice: Spice, rng: () => number = Math.random): string {
+export function renderPenalty(
+  text: string,
+  spice: Spice,
+  rng: () => number = Math.random,
+  opts: { tab?: boolean } = {},
+): string {
+  const tab = opts.tab && spice !== 'chill';
   let actGiven = false;
   const act = (list: string[]) => {
     if (spice !== 'wild' || actGiven) return '';
@@ -72,10 +83,15 @@ export function renderPenalty(text: string, spice: Spice, rng: () => number = Ma
       if (spice === 'chill') {
         return pick(CHILL_PENALTIES, rng).replace('{n}', String(n * 5)).replace('{t}', String(n * 15));
       }
+      if (tab) return `put ${n} on the tab${act(WILD_ACTS)}`;
       return `take ${n} sip${n === 1 ? '' : 's'}${act(WILD_ACTS)}`;
     })
     .replace(/\{finish\}/g, () =>
-      spice === 'chill' ? 'run a lap around the court doing the pickle dance' : `take a big gulp${act(WILD_FINALES)}`,
+      spice === 'chill'
+        ? 'run a lap around the court doing the pickle dance'
+        : tab
+          ? `put ${FINISH_SIPS} on the tab${act(WILD_FINALES)}`
+          : `take a big gulp${act(WILD_FINALES)}`,
     )
     // A penalty that starts a sentence ("Forget? take 2 sips.") gets a capital letter.
     .replace(/([.?!]\s+)([a-z])/g, (_, gap: string, c: string) => gap + c.toUpperCase());
