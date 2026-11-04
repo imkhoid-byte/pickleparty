@@ -1,23 +1,23 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { CARDS, Card, PACKS, PackId, cardsForPacks, customCards } from './game/cards';
-import { RRLink, RRSession, recordResult } from './game/roundRobin';
+import type { RRSession } from './game/roundRobin';
+import type { RoundsSession } from './game/rounds';
 import { Access, canUsePack, computeAccess, usablePacks } from './monetization/entitlements';
 import { StoreState, fetchStoreState } from './purchases';
 import {
   DEFAULT_SETTINGS,
   GameRecord,
-  SavedMatch,
   Settings,
   addGame,
   clearHistory,
   saveHistory,
   loadHistory,
   loadRoundRobin,
-  loadSavedMatch,
+  loadRounds,
   loadSettings,
   saveRoundRobin,
-  saveMatchProgress,
+  saveRounds,
   saveSettings,
 } from './storage';
 
@@ -33,8 +33,6 @@ interface AppState {
    * switched on for the card deck (Chaos Rules is its own switch).
    */
   courtRules: Card[];
-  /** House rules: from the active packs, or Classic's if none of them have any. */
-  houseRules: Card[];
   /** Cards from premium packs this player doesn't have (for teasers). Never adult packs. */
   lockedCards: Card[];
   updateSettings: (patch: Partial<Settings>) => void;
@@ -48,12 +46,10 @@ interface AppState {
   /** The open-play round robin in progress (saved on the phone), or null. */
   roundRobin: RRSession | null;
   setRoundRobin: (update: (prev: RRSession | null) => RRSession | null) => void;
-  /** The game in progress, if any (restored after a reload, or offered on the home screen). */
-  savedMatch: SavedMatch | null;
-  /** Save the game in progress, or pass null to forget it. */
-  setSavedMatch: (saved: SavedMatch | null) => void;
-  /** A round robin game scored in the app reports its result here. */
-  reportRoundRobin: (link: RRLink, teamNames: [string, string], winner: 0 | 1 | null, score?: [number, number]) => void;
+  /** The drinking game in progress (saved on the phone), or null. */
+  rounds: RoundsSession | null;
+  /** Save the drinking game's new state, or pass null to end it. */
+  setRounds: (session: RoundsSession | null) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -63,11 +59,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [history, setHistory] = useState<GameRecord[]>([]);
   const [roundRobin, setRoundRobinState] = useState<RRSession | null>(null);
-  const [savedMatch, setSavedMatchState] = useState<SavedMatch | null>(null);
+  const [rounds, setRoundsState] = useState<RoundsSession | null>(null);
 
-  const setSavedMatch = useCallback((saved: SavedMatch | null) => {
-    setSavedMatchState(saved);
-    saveMatchProgress(saved).catch(() => {});
+  /** The drinking game in progress: changed, and saved, after every round. */
+  const setRounds = useCallback((session: RoundsSession | null) => {
+    setRoundsState(session);
+    saveRounds(session).catch(() => {});
   }, []);
 
   const setRoundRobin = useCallback((update: (prev: RRSession | null) => RRSession | null) => {
@@ -78,11 +75,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const reportRoundRobin = useCallback(
-    (link: RRLink, teamNames: [string, string], winner: 0 | 1 | null, score?: [number, number]) =>
-      setRoundRobin((prev) => (prev ? recordResult(prev, link, teamNames, winner, score) : prev)),
-    [setRoundRobin],
-  );
   // Re-evaluated on every render that matters; trial expiry only needs day precision.
   const [now, setNow] = useState(() => Date.now());
 
@@ -109,9 +101,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    Promise.all([loadSettings(), loadHistory(), loadRoundRobin(), loadSavedMatch()]).then(([s, h, rr, m]) => {
+    Promise.all([loadSettings(), loadHistory(), loadRoundRobin(), loadRounds()]).then(([s, h, rr, r]) => {
       setRoundRobinState(rr);
-      setSavedMatchState(m);
+      setRoundsState(r);
       // Players from before the trial existed start theirs now.
       const loaded = s.ageAsked && s.trialStartedAt === null ? { ...s, trialStartedAt: Date.now() } : s;
       setSettings(loaded);
@@ -142,16 +134,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return { deck: cards, lockedCards: cardsForPacks(lockedPacks) };
   }, [settings, access]);
 
-  const { courtRules, houseRules } = useMemo(() => {
+  const courtRules = useMemo(() => {
     const adultOk = settings.ageConfirmed && settings.dateNightConsent;
     const allowed = (pack: PackId) =>
       canUsePack(pack, access, settings.unlockedPacks) && (!PACKS.find((p) => p.id === pack)?.adult || adultOk);
-    const rules = deck.filter((c) => c.kind === 'rule');
-    return {
-      courtRules: CARDS.filter((c) => c.kind === 'court' && allowed(c.pack)),
-      houseRules: rules.length > 0 ? rules : cardsForPacks(['classic']).filter((c) => c.kind === 'rule'),
-    };
-  }, [settings, access, deck]);
+    return CARDS.filter((c) => c.kind === 'court' && allowed(c.pack));
+  }, [settings, access]);
 
   const recordGame = useCallback((record: GameRecord) => {
     setHistory((prev) => [record, ...prev]);
@@ -186,7 +174,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         access,
         deck,
         courtRules,
-        houseRules,
         lockedCards,
         updateSettings,
         recordGame,
@@ -196,9 +183,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         applyStoreState,
         roundRobin,
         setRoundRobin,
-        savedMatch,
-        setSavedMatch,
-        reportRoundRobin,
+        rounds,
+        setRounds,
       }}
     >
       {children}

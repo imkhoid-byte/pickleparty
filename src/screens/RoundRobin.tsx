@@ -4,7 +4,7 @@ import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { useApp } from '../AppState';
 import { APP_LINK, HASHTAG } from '../config';
 import { RRLink, addPlayer, maxCourts, nextRound, pairName, recordResult, standings } from '../game/roundRobin';
-import { goBack, playRoundRobinGame } from '../navigation';
+import { goBack } from '../navigation';
 import { Button, Card, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 
@@ -101,13 +101,6 @@ function Session() {
     const link: RRLink = { round: roundIndex, match: matchIndex };
     setRoundRobin((rr) => (rr ? recordResult(rr, link, [pairName(m.teams[0]), pairName(m.teams[1])], team) : rr));
   };
-  const score = (matchIndex: number) => {
-    const m = current.matches[matchIndex];
-    playRoundRobinGame(
-      { format: 'doubles', scoring: 'sideout', target, teamNames: [pairName(m.teams[0]), pairName(m.teams[1])] },
-      { round: roundIndex, match: matchIndex },
-    );
-  };
   const nextUp = () => {
     const next = nextRound(players, roundRobin.courts, rounds);
     setRoundRobin((rr) => (rr ? { ...rr, rounds: [...rr.rounds, next] } : rr));
@@ -126,7 +119,7 @@ function Session() {
   return (
     <Screen title={`Round ${rounds.length}`} onBack={goBack}>
       <Text style={styles.intro}>
-        Score a court&apos;s game with PickleParty for the full party, or just tap the winning pair when it&apos;s done.
+        Play each court&apos;s game to {target}, then tap the winning pair.
       </Text>
       {current.matches.map((m, i) => (
         <Card key={m.court}>
@@ -149,11 +142,7 @@ function Session() {
               </Text>
             </Pressable>
           ))}
-          {m.winner === null ? (
-            <Button label="▶ Score it with PickleParty" small onPress={() => score(i)} />
-          ) : (
-            <Text style={styles.hint}>{m.score ? 'Scored in the app.' : 'Tap the other pair to change it.'}</Text>
-          )}
+          {m.winner !== null && <Text style={styles.hint}>Tap the other pair to change it.</Text>}
         </Card>
       ))}
       {current.byes.length > 0 && (

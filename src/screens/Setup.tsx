@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useApp } from '../AppState';
-import { Format, PARTY_TARGET, ScoringSystem, Team } from '../game/scoring';
+import { cleanNames, startSession } from '../game/rounds';
+import { Team } from '../game/scoring';
 import { isAlcoholic } from '../game/spice';
-import { goBack, startMatch } from '../navigation';
+import { goBack, openRounds, startGame } from '../navigation';
 import { replaySupported } from '../replay/useReplay';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
@@ -59,47 +60,43 @@ const SPOOKY_NAMES = [
 
 type NameStyle = 'teams' | 'couples' | 'spooky';
 
-/** Shown the first time someone sets up a match (and again from "How does it work?"). */
-const REPLAY_STEP = {
-  emoji: '🎬',
-  title: 'Catch the highlights',
-  body: 'Tap ● Film it beside the score and point the phone at the court (or prop it up). Aces, highlight shots and the winning point save themselves as clips with the score on them. Tap the little camera to save any other great point.',
-};
-
+/** Shown the first time someone sets up a game (and again from "How does it work?"). */
 const HOW_IT_WORKS = [
   {
-    emoji: '📱',
-    title: 'Pick a Hype Man',
-    body: 'Someone sitting out, or the closest player, runs the phone. Got a Bluetooth speaker? Connect it so the whole court hears the announcer.',
+    emoji: '🏓',
+    title: 'Just play',
+    body: 'No tapping every point. In a regular game you enter the final score when it’s over. In the drinking game you tap how it went every 3 points.',
   },
   {
-    emoji: '👆',
-    title: 'Tap who won each rally',
-    body: 'The app keeps score, calls it out loud and tracks who serves from which side. Mis-tap? Hit Undo. A Bluetooth page-turner clicker works too: left button for the top team, right for the bottom.',
-  },
-  {
-    emoji: '🎉',
-    title: 'Let the party happen',
-    body: 'Prompts pop up and close on their own. Tap a moment (net ball, ace…) when it happens, and draw a Party Card whenever the vibe dips.',
+    emoji: '💪',
+    title: 'Regular game: losers work out',
+    body: 'Enter the final score and the losers get a workout: squats, push-ups, a plank… The bigger the loss, the more reps. Get pickled (shut out) and it’s the most.',
   },
 ];
 
+/** The drinking game, for players who said they're 21+. */
+const DRINKING_STEP = {
+  emoji: '🍻',
+  title: 'Drinking game: 3 points, then drink',
+  body: 'King of the Court. Play 3 points, tap the result, and everyone drinks a sip for every point their side lost. The losers rotate off and the next two come on; the winners stay (for up to 3 rounds in a row).',
+};
+
+const REPLAY_STEP = {
+  emoji: '🎬',
+  title: 'Catch the highlights',
+  body: 'Tap ● Film it and point the phone at the court (or prop it up). Tap the picture right after a great point to save the last 30 seconds, ready to share.',
+};
+
+type Mode = 'game' | 'drink';
+
 type PartyStyle = 'calm' | 'party' | 'chaos';
 const PARTY_STYLES: { id: PartyStyle; label: string; hint: string }[] = [
-  {
-    id: 'calm',
-    label: '😌 Calm',
-    hint: 'Only the big moments interrupt: Pickle Watch, game point and the win. Best when nobody is near the phone.',
-  },
-  {
-    id: 'party',
-    label: '🎉 Party',
-    hint: 'Side-outs, hot streaks and ties all get called out. Best with a Hype Man on the phone.',
-  },
+  { id: 'calm', label: '😌 Calm', hint: 'Just the rounds and the drinks.' },
+  { id: 'party', label: '🎉 Party', hint: 'At any break, draw a Party Card for the next round.' },
   {
     id: 'chaos',
     label: '🌀 Chaos',
-    hint: 'The full party, plus a new Court Rule every 3 points: hands only, hold hands, silent rallies… Break it and the other team wins the rally (tap 🚫 Rule broken).',
+    hint: 'A new Court Rule every round: hands only, hold hands, silent rallies… Break it and you lose the point.',
   },
 ];
 
@@ -110,32 +107,24 @@ const randomName = (exclude: string, style: NameStyle = 'teams') => {
 };
 
 export function Setup() {
-  const { settings, updateSettings, deck } = useApp();
-  const couples = settings.spice === 'wild';
-  // Couples mode wins; otherwise go spooky when the Halloween pack is in play.
-  const style: NameStyle = couples ? 'couples' : deck.some((c) => c.pack === 'halloween') ? 'spooky' : 'teams';
+  const { settings, updateSettings, deck, rounds, setRounds } = useApp();
+  // The drinking game is only for players who said they're 21+.
+  const canDrink = settings.ageConfirmed;
+  const [mode, setMode] = useState<Mode>(() => (canDrink && isAlcoholic(settings.spice) ? 'drink' : 'game'));
+  const style: NameStyle = settings.spice === 'wild' ? 'couples' : deck.some((c) => c.pack === 'halloween') ? 'spooky' : 'teams';
   const [names, setNames] = useState<[string, string]>(() => {
     const a = randomName('', style);
     return [a, randomName(a, style)];
   });
-  const [format, setFormat] = useState<Format>('doubles');
-  const [scoring, setScoring] = useState<ScoringSystem>('sideout');
   const [target, setTarget] = useState(11);
-  // Party Rules: quick rally games to 7 with the Bar Tab (instead of a classic game).
-  const [party, setParty] = useState(false);
-  const [firstServer, setFirstServer] = useState<Team>(0);
+  // The drinking game's players: last time's crew to start with.
+  const [players, setPlayers] = useState<string[]>(() => settings.lastPlayers);
+  const [draft, setDraft] = useState('');
   const [howTo, setHowTo] = useState<number | null>(() => (settings.seenHowTo ? null : 0));
   // Instant Replay works where the browser can film (the web version for now).
   const [canFilm] = useState(replaySupported);
-  const steps = canFilm ? [...HOW_IT_WORKS, REPLAY_STEP] : HOW_IT_WORKS;
+  const steps = [...HOW_IT_WORKS, ...(canDrink ? [DRINKING_STEP] : []), ...(canFilm ? [REPLAY_STEP] : [])];
   const partyStyle: PartyStyle = settings.chaos ? 'chaos' : settings.calm ? 'calm' : 'party';
-  const pickScoring = (next: ScoringSystem) => {
-    setParty(false);
-    setScoring(next);
-    // Rally scoring to 11 is over in about 7 minutes, so it starts at 15 (still changeable).
-    if (next === 'rally' && target === 11) setTarget(15);
-    if (next === 'sideout' && target === 15) setTarget(11);
-  };
   const closeHowTo = () => {
     setHowTo(null);
     if (!settings.seenHowTo) updateSettings({ seenHowTo: true });
@@ -147,59 +136,69 @@ export function Setup() {
       next[team] = value;
       return next;
     });
+  const addPlayers = () => {
+    // "Ana, Ben, Cal" adds three at once.
+    setPlayers((prev) => cleanNames([...prev, ...draft.split(',')]));
+    setDraft('');
+  };
+  const ready = cleanNames(players);
 
-  const start = () => {
-    const teamNames = names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string];
-    startMatch(
-      party
-        ? { format, scoring: 'rally', target: PARTY_TARGET, teamNames, partyRules: true }
-        : { format, scoring, target, teamNames },
-      firstServer,
-    );
+  const startRegular = () => startGame(names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string], target);
+  const startDrinking = () => {
+    if (ready.length < 4) return;
+    updateSettings({ lastPlayers: ready });
+    setRounds(startSession(ready));
+    openRounds(true);
   };
 
   return (
-    <Screen title="New Match" onBack={goBack}>
-      {([0, 1] as Team[]).map((t) => (
-        <View key={t} style={{ gap: 6 }}>
-          <Label>{couples ? 'Couple' : 'Team'} {t + 1}</Label>
-          <View style={styles.nameRow}>
-            <TextInput
-              value={names[t]}
-              onChangeText={(v) => setName(t, v)}
-              maxLength={24}
-              placeholder={`Team ${t + 1}`}
-              placeholderTextColor={colors.muted}
-              style={[styles.input, { borderColor: teamColors[t] }]}
-            />
-            <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t], style))} />
-          </View>
+    <Screen title="New Game" onBack={goBack}>
+      {rounds && (
+        <Pressable onPress={() => openRounds(true)} style={styles.resume} accessibilityRole="button">
+          <Text style={styles.resumeText}>🍻 Round {rounds.rounds.length + 1} is in progress: tap to go back to it</Text>
+        </Pressable>
+      )}
+      {canDrink && (
+        <View style={styles.modes}>
+          {(
+            [
+              ['game', '🏓', 'Regular game', 'Enter the final score. Losers work out.'],
+              ['drink', '🍻', 'Drinking game', '3 points, drink, rotate. King of the Court.'],
+            ] as const
+          ).map(([id, emoji, title, blurb]) => (
+            <Pressable
+              key={id}
+              onPress={() => setMode(id)}
+              style={[styles.mode, mode === id && styles.modeOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === id }}
+            >
+              <Text style={styles.modeEmoji}>{emoji}</Text>
+              <Text style={[styles.modeTitle, mode === id && { color: colors.pickle }]}>{title}</Text>
+              <Text style={styles.modeBlurb}>{blurb}</Text>
+            </Pressable>
+          ))}
         </View>
-      ))}
-
-      <Label>Format</Label>
-      <View style={styles.row}>
-        <Chip label="Doubles" selected={format === 'doubles'} onPress={() => setFormat('doubles')} />
-        <Chip label="Singles" selected={format === 'singles'} onPress={() => setFormat('singles')} />
-      </View>
-
-      <Label>Scoring</Label>
-      <View style={styles.row}>
-        <Chip label="🍻 Party Rules" selected={party} color={colors.orange} onPress={() => setParty(true)} />
-        <Chip label="Classic side-out" selected={!party && scoring === 'sideout'} onPress={() => pickScoring('sideout')} />
-        <Chip label="Rally scoring" selected={!party && scoring === 'rally'} onPress={() => pickScoring('rally')} />
-      </View>
-      {party && (
-        <Text style={styles.hint}>
-          {isAlcoholic(settings.spice)
-            ? 'Quick games: every rally scores, first to 7 (at 6–6, next point wins). Penalties go on each team’s Bar Tab instead of being drunk mid-game. At 4, switch ends and pay up at the bench. At the end, the losers settle up and rotate off; the winners stay on.'
-            : 'Quick games: every rally scores, first to 7 (at 6–6, next point wins). Switch ends at 4. The losers rotate off; the winners stay on.'}
-        </Text>
       )}
 
-      {/* Party Rules games are always to 7. */}
-      {!party && (
+      {mode === 'game' ? (
         <>
+          {([0, 1] as Team[]).map((t) => (
+            <View key={t} style={{ gap: 6 }}>
+              <Label>Team {t + 1}</Label>
+              <View style={styles.nameRow}>
+                <TextInput
+                  value={names[t]}
+                  onChangeText={(v) => setName(t, v)}
+                  maxLength={24}
+                  placeholder={`Team ${t + 1}`}
+                  placeholderTextColor={colors.muted}
+                  style={[styles.input, { borderColor: teamColors[t] }]}
+                />
+                <Button label="🎲" small variant="secondary" onPress={() => setName(t, randomName(names[1 - t], style))} />
+              </View>
+            </View>
+          ))}
           <Label>Play to</Label>
           <View style={styles.row}>
             {[7, 11, 15, 21].map((n) => (
@@ -207,25 +206,60 @@ export function Setup() {
             ))}
           </View>
           <Text style={styles.hint}>
-            {scoring === 'rally' ? 'Every rally scores, so games go about twice as fast. ' : ''}Win by 2. Shut out the
-            other team to PICKLE them. 🥒
+            Keep score yourselves; enter the final score when it&apos;s over. The bigger the loss, the bigger the workout. 💪
           </Text>
         </>
-      )}
+      ) : (
+        <>
+          <Label>Players ({ready.length})</Label>
+          <View style={styles.row}>
+            {ready.map((p) => (
+              <Pressable
+                key={p}
+                onPress={() => setPlayers((prev) => prev.filter((x) => x !== p))}
+                style={styles.player}
+                accessibilityRole="button"
+                accessibilityHint={`Remove ${p}`}
+              >
+                <Text style={styles.playerText}>{p} ✕</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.nameRow}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={addPlayers}
+              maxLength={60}
+              placeholder="Add a name (or several: Ana, Ben)"
+              placeholderTextColor={colors.muted}
+              style={[styles.input, styles.playerInput]}
+            />
+            <Button label="Add" small onPress={addPlayers} disabled={!draft.trim()} />
+          </View>
+          <Text style={styles.hint}>
+            {ready.length < 4
+              ? `Add at least 4 players (${4 - ready.length} more).`
+              : ready.length === 4
+                ? 'Four players: partners switch every round. Add more and the losers rotate off.'
+                : `${ready.length - 4} waiting at a time: the losers rotate off and the next two come on.`}
+          </Text>
 
-      <Label>Party style</Label>
-      <View style={styles.row}>
-        {PARTY_STYLES.map((p) => (
-          <Chip
-            key={p.id}
-            label={p.label}
-            selected={partyStyle === p.id}
-            color={p.id === 'chaos' ? colors.danger : colors.pickle}
-            onPress={() => updateSettings({ calm: p.id === 'calm', chaos: p.id === 'chaos' })}
-          />
-        ))}
-      </View>
-      <Text style={styles.hint}>{PARTY_STYLES.find((p) => p.id === partyStyle)?.hint}</Text>
+          <Label>Party style</Label>
+          <View style={styles.row}>
+            {PARTY_STYLES.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.label}
+                selected={partyStyle === p.id}
+                color={p.id === 'chaos' ? colors.danger : colors.pickle}
+                onPress={() => updateSettings({ calm: p.id === 'calm', chaos: p.id === 'chaos' })}
+              />
+            ))}
+          </View>
+          <Text style={styles.hint}>{PARTY_STYLES.find((p) => p.id === partyStyle)?.hint}</Text>
+        </>
+      )}
 
       {canFilm && (
         <>
@@ -241,26 +275,17 @@ export function Setup() {
           </View>
           <Text style={styles.hint}>
             {settings.filmHighlights
-              ? 'The camera starts with the game. Point the phone at the court or prop it up: aces, highlight shots and the winning point save themselves as clips to share.'
-              : 'Turn it on to film the game: big plays save themselves as clips, with the score on them.'}
+              ? 'The camera starts with the game. Point the phone at the court or prop it up, and tap the picture after a great point.'
+              : 'Turn it on to film the game and save great points as clips to share.'}
           </Text>
         </>
       )}
 
-      <Label>First serve</Label>
-      <View style={styles.row}>
-        {([0, 1] as Team[]).map((t) => (
-          <Chip
-            key={t}
-            label={names[t] || `Team ${t + 1}`}
-            color={teamColors[t]}
-            selected={firstServer === t}
-            onPress={() => setFirstServer(t)}
-          />
-        ))}
-      </View>
-
-      <Button label="Let's Dink 🥒" onPress={start} style={{ marginTop: 12 }} />
+      {mode === 'game' ? (
+        <Button label="Let's Dink 🥒" onPress={startRegular} style={{ marginTop: 12 }} />
+      ) : (
+        <Button label="Start King of the Court 🍻" onPress={startDrinking} disabled={ready.length < 4} style={{ marginTop: 12 }} />
+      )}
       <Text style={styles.link} onPress={() => setHowTo(0)} accessibilityRole="button">
         How does it work?
       </Text>
@@ -305,5 +330,24 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   hint: { color: colors.muted, fontSize: 14 },
+  modes: { flexDirection: 'row', gap: 10 },
+  mode: {
+    flex: 1,
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.surfaceHi,
+    backgroundColor: colors.surface,
+    gap: 4,
+  },
+  modeOn: { borderColor: colors.pickle },
+  modeEmoji: { fontSize: 30 },
+  modeTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  modeBlurb: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  player: { backgroundColor: colors.surfaceHi, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14 },
+  playerText: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  playerInput: { fontSize: 17, borderColor: colors.surfaceHi },
+  resume: { backgroundColor: colors.orange, borderRadius: radius.md, padding: 14 },
+  resumeText: { color: colors.bg, fontSize: 15, fontWeight: '900', textAlign: 'center' },
   link: { color: colors.sky, fontSize: 15, fontWeight: '700', textAlign: 'center', paddingVertical: 4 },
 });

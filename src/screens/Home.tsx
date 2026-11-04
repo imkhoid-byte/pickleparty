@@ -10,7 +10,7 @@ import { packsInSeason } from '../game/cards';
 import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
 import { autoPaywall, canUseAnnouncer, canUsePack, usableAnnouncer } from '../monetization/entitlements';
-import { openPaywall, resumeMatch } from '../navigation';
+import { openPaywall, openRounds } from '../navigation';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
 import { colors, radius } from '../ui/theme';
 
@@ -41,14 +41,14 @@ export function Home() {
     <Screen>
       <View style={styles.hero}>
         <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
-        <Text style={styles.tagline}>Keep score. Cause chaos. Don&apos;t get pickled.</Text>
+        <Text style={styles.tagline}>Play hard. Cause chaos. Don&apos;t get pickled.</Text>
       </View>
 
       <ResumeBanner />
       <ProBadge />
       <SeasonalBanner />
 
-      <Button label="🏓  Start a Match" onPress={() => router.push('/setup')} />
+      <Button label="🏓  New Game" onPress={() => router.push('/setup')} />
       <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
       <View style={styles.grid}>
         <Button label="🏆 Stats" variant="secondary" style={styles.cell} onPress={() => router.push('/stats')} />
@@ -84,13 +84,6 @@ export function Home() {
       <View style={styles.row}>
         <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
         <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
-        {settings.voice && (
-          <Chip
-            label="🔢 Calls the score"
-            selected={settings.scoreCalls}
-            onPress={() => updateSettings({ scoreCalls: !settings.scoreCalls })}
-          />
-        )}
       </View>
       {settings.voice && (
         <View style={styles.row}>
@@ -116,10 +109,8 @@ export function Home() {
       )}
       <Text style={styles.muted}>
         {settings.voice
-          ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out penalties by team name${
-              settings.scoreCalls ? ', then the score and who is serving after every rally' : ''
-            }. Tap one to hear it.`
-          : 'Calls out penalties by team name, so nobody has to check the phone.'}
+          ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out the drinks, the rotations and the workouts by name. Tap one to hear it.`
+          : 'Calls out the drinks, the rotations and the workouts by name, so nobody has to check the phone.'}
       </Text>
       {!settings.ageConfirmed && (
         <Text style={styles.link} onPress={() => updateSettings({ ageAsked: false })}>
@@ -156,31 +147,30 @@ export function Home() {
   );
 }
 
-/** A game left unfinished (the page reloaded, or someone quit by mistake): pick it back up. */
+/** A drinking game in progress (the page reloaded, or someone went back): pick it back up. */
 function ResumeBanner() {
-  const { savedMatch, setSavedMatch } = useApp();
+  const { rounds, setRounds } = useApp();
   const [now] = useState(() => Date.now());
-  // Older than half a day, it's not the same session any more.
-  if (!savedMatch || savedMatch.match.winner !== null || now - savedMatch.savedAt > 12 * 60 * 60 * 1000) return null;
-  const { config, scores } = savedMatch.match;
+  // Older than half a day, it's not the same night any more.
+  if (!rounds || now - rounds.startedAt > 12 * 60 * 60 * 1000) return null;
   return (
     <View style={styles.resume}>
       <Pressable
-        onPress={() => resumeMatch(savedMatch)}
+        onPress={() => openRounds()}
         style={styles.resumeMain}
         accessibilityRole="button"
-        accessibilityLabel={`Resume your game, ${config.teamNames[0]} ${scores[0]}, ${config.teamNames[1]} ${scores[1]}`}
+        accessibilityLabel={`Back to the drinking game, round ${rounds.rounds.length + 1}`}
       >
-        <Text style={styles.resumeTitle}>▶ Resume your game</Text>
+        <Text style={styles.resumeTitle}>▶ Back to King of the Court</Text>
         <Text style={styles.resumeScore} numberOfLines={1}>
-          {config.teamNames[0]} {scores[0]} – {scores[1]} {config.teamNames[1]}
+          Round {rounds.rounds.length + 1} · {rounds.players.length} players
         </Text>
       </Pressable>
       <Pressable
-        onPress={() => setSavedMatch(null)}
+        onPress={() => setRounds(null)}
         hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel="Forget this game"
+        accessibilityLabel="End that game"
         style={styles.resumeClose}
       >
         <Text style={styles.resumeCloseText}>✕</Text>

@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { PackId } from './game/cards';
 import type { RRSession } from './game/roundRobin';
-import { MatchState, Team } from './game/scoring';
+import type { RoundsSession } from './game/rounds';
+import { Team } from './game/scoring';
 import { AnnouncerId, announcerFor } from './audio/personas';
 import { Spice } from './game/spice';
 
@@ -21,21 +22,15 @@ export interface Settings {
   haptics: boolean;
   /** Sound effects on big moments. */
   sound: boolean;
-  /** Read penalties out loud with the team names. */
+  /** Read the drink breaks, rotations and workouts out loud, by name. */
   voice: boolean;
-  /** The announcer also calls the score and who's serving after every rally. */
-  scoreCalls: boolean;
-  /** High-contrast match screen for playing outdoors. */
-  sunlight: boolean;
-  /** Calm mode: only the big moments interrupt the game. */
+  /** Drinking game, Calm: just the rounds and the drinks (no Party Cards at the break). */
   calm: boolean;
-  /** Chaos Rules: a new Court Rule every few points. */
+  /** Drinking game, Chaos: a new Court Rule every round. */
   chaos: boolean;
   /** The first-match "How it works" has been shown. */
   seenHowTo: boolean;
-  /** How many matches have shown the "turn sideways for TV mode" tip (it shows for the first two). */
-  tvTipsShown: number;
-  /** Instant Replay: start filming when a match starts (the group's last choice). */
+  /** Instant Replay: start filming when a game starts (the group's last choice). */
   filmHighlights: boolean;
   /** Record the court's sound with the clips. */
   replaySound: boolean;
@@ -52,6 +47,8 @@ export interface Settings {
   dateNightConsent: boolean;
   /** Pro: the crew's own cards. */
   customCards: { id: string; text: string }[];
+  /** The drinking game's players last time, to start the next one with. */
+  lastPlayers: string[];
 }
 
 export interface GameRecord {
@@ -75,12 +72,9 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   sound: true,
   voice: true,
-  scoreCalls: true,
-  sunlight: false,
   calm: false,
   chaos: false,
   seenHowTo: false,
-  tvTipsShown: 0,
   filmHighlights: false,
   replaySound: false,
   replayTipsShown: 0,
@@ -90,12 +84,13 @@ export const DEFAULT_SETTINGS: Settings = {
   trialEndedPaywallShown: false,
   dateNightConsent: false,
   customCards: [],
+  lastPlayers: [],
 };
 
 const SETTINGS_KEY = 'pickleparty.settings.v1';
 const HISTORY_KEY = 'pickleparty.history.v1';
 const ROUND_ROBIN_KEY = 'pickleparty.roundrobin.v1';
-const MATCH_KEY = 'pickleparty.match.v1';
+const ROUNDS_KEY = 'pickleparty.rounds.v1';
 const MAX_HISTORY = 200;
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -147,28 +142,13 @@ export async function saveRoundRobin(session: RRSession | null): Promise<void> {
   else await AsyncStorage.removeItem(ROUND_ROBIN_KEY);
 }
 
-/**
- * The game in progress, saved after every rally, so it survives the page
- * reloading (iPhone Safari often reloads a page after you switch apps).
- */
-export interface SavedMatch {
-  /** Which game this is (part of the match screen's address). */
-  id: string;
-  match: MatchState;
-  firstServer: Team;
-  /** Set when the game is a court's game in the round robin ("round:match"). */
-  roundRobin?: string;
-  houseRuleId?: string;
-  courtRuleId?: string;
-  savedAt: number;
+/** The drinking game in progress, saved after every round so a reload doesn't lose the night. */
+export async function loadRounds(): Promise<RoundsSession | null> {
+  const s = await readJson<RoundsSession | null>(ROUNDS_KEY, null);
+  return s && Array.isArray(s.players) && Array.isArray(s.rounds) && Array.isArray(s.court) ? s : null;
 }
 
-export async function loadSavedMatch(): Promise<SavedMatch | null> {
-  const s = await readJson<SavedMatch | null>(MATCH_KEY, null);
-  return s && s.id && s.match?.config ? s : null;
-}
-
-export async function saveMatchProgress(saved: SavedMatch | null): Promise<void> {
-  if (saved) await AsyncStorage.setItem(MATCH_KEY, JSON.stringify(saved));
-  else await AsyncStorage.removeItem(MATCH_KEY);
+export async function saveRounds(session: RoundsSession | null): Promise<void> {
+  if (session) await AsyncStorage.setItem(ROUNDS_KEY, JSON.stringify(session));
+  else await AsyncStorage.removeItem(ROUNDS_KEY);
 }

@@ -2,21 +2,29 @@ import { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { APP_LINK } from '../config';
-import { other } from '../game/scoring';
-import type { MatchState } from '../game/scoring';
+import { Team, other } from '../game/scoring';
 import { colors, radius, teamColors } from './theme';
 
 const LOGO = require('../../assets/brand/logo-badge-512.png');
+
+/** A finished game, as entered. */
+export interface FinalScore {
+  teamNames: [string, string];
+  scores: [number, number];
+  winner: Team;
+  /** What the game was played to. */
+  target: number;
+}
 
 /**
  * The final score as a card, shown on the game-over screen and shared as an
  * image (a picture in the group chat travels further than a line of text).
  */
-export const ResultCard = forwardRef<View, { match: MatchState }>(function ResultCard({ match }, ref) {
-  const w = match.winner ?? 0;
+export const ResultCard = forwardRef<View, { result: FinalScore }>(function ResultCard({ result }, ref) {
+  const w = result.winner;
   const l = other(w);
-  const names = match.config.teamNames;
-  const pickled = match.scores[l] === 0;
+  const names = result.teamNames;
+  const pickled = result.scores[l] === 0;
   const accent = pickled ? colors.orange : teamColors[w];
   return (
     // The frame is what gets captured: it gives the image square corners in the
@@ -30,14 +38,12 @@ export const ResultCard = forwardRef<View, { match: MatchState }>(function Resul
           {names[w]}
         </Text>
         <Text style={styles.score}>
-          {match.scores[w]} – {match.scores[l]}
+          {result.scores[w]} – {result.scores[l]}
         </Text>
         <Text style={styles.loser} numberOfLines={2}>
           {pickled ? `shut out ${names[l]}` : `beat ${names[l]}`}
         </Text>
-        <Text style={styles.meta}>
-          {match.rallies} rallies · to {match.config.target}
-        </Text>
+        <Text style={styles.meta}>Game to {result.target}</Text>
         <Text style={styles.footer}>{APP_LINK.replace(/^https?:\/\//, '')} · #PickleParty</Text>
       </View>
     </View>

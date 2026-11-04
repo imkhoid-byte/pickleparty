@@ -3,19 +3,14 @@ import { ANNOUNCERS, announcerFor, announcerScript, pickMaleVoice, voiceSettings
 import { speechText } from '../../audio/speechText';
 import { CARDS, PACKS, addressCard, cardsForPacks, drawCard, packsInSeason } from '../cards';
 import {
-  CHAOS_EVERY,
   LOSERS_WHEEL,
   MOMENTS,
-  courtRuleDue,
   momentPrompt,
   momentRallyWinner,
-  pointsUntilNextRule,
   promptForEvents,
-  ruleBrokenPrompt,
   spinLosersWheel,
-  waterBreakDue,
 } from '../party';
-import { newMatch, rallyWonBy } from '../scoring';
+import { newMatch } from '../scoring';
 import { WILD_ACTS, renderPenalty } from '../spice';
 
 const state = newMatch({ format: 'doubles', scoring: 'sideout', target: 11, teamNames: ['Dinkers', 'Bangers'] });
@@ -61,25 +56,6 @@ describe('promptForEvents', () => {
     expect(promptForEvents([{ type: 'tied', score: 5 }], state, 'tipsy')).toBeNull();
     expect(promptForEvents([{ type: 'tied', score: 7 }], state, 'tipsy')?.title).toBe('Tied at 7');
   });
-  it('calls a water break every two games in a session', () => {
-    const min = 60 * 1000;
-    const now = 1_000_000_000;
-    const game = (id: string, ago: number) => ({
-      id,
-      date: now - ago * min,
-      teamNames: ['A', 'B'] as [string, string],
-      scores: [11, 5] as [number, number],
-      winner: 0 as const,
-      pickled: false,
-      rallies: 30,
-    });
-    expect(waterBreakDue([], now)).toBeNull();
-    expect(waterBreakDue([game('1', 1)], now)).toBeNull();
-    expect(waterBreakDue([game('1', 20), game('2', 1)], now)).toBe('2');
-    expect(waterBreakDue([game('1', 40), game('2', 20), game('3', 1)], now)).toBeNull();
-    // Yesterday's game doesn't count toward today's session.
-    expect(waterBreakDue([game('0', 60 * 24), game('1', 1)], now)).toBeNull();
-  });
   it('fills moment templates', () => {
     expect(momentPrompt('net', 'Sam', 'tipsy').body).toBe('Sam fed the net. Pay the tax: take 1 sip.');
   });
@@ -110,26 +86,6 @@ describe('Chaos Rules', () => {
   });
   it('gives every Court Rule a name, then what to do', () => {
     for (const c of court) expect(c.text).toMatch(/^[A-Z][^:]{2,24}: [a-zA-Z"]/);
-  });
-  it('draws a new rule every few points, not on side-outs or at game end', () => {
-    let s = newMatch({ format: 'doubles', scoring: 'rally', target: 11, teamNames: ['A', 'B'] });
-    const due: number[] = [];
-    for (let i = 1; i <= 10; i++) {
-      const { state } = rallyWonBy(s, 0);
-      if (courtRuleDue(s, state)) due.push(i);
-      s = state;
-    }
-    expect(due).toEqual([CHAOS_EVERY, CHAOS_EVERY * 2, CHAOS_EVERY * 3]);
-    expect(pointsUntilNextRule(s)).toBe(CHAOS_EVERY - (10 % CHAOS_EVERY));
-    const end = rallyWonBy(s, 0).state;
-    expect(end.winner).toBe(0);
-    expect(courtRuleDue(s, end)).toBe(false);
-    // A side-out scores nothing, so it never brings a new rule.
-    const so = newMatch({ format: 'doubles', scoring: 'sideout', target: 11, teamNames: ['A', 'B'] });
-    expect(courtRuleDue(so, rallyWonBy(so, 1).state)).toBe(false);
-  });
-  it('gives the rally to the other team when a rule is broken', () => {
-    expect(ruleBrokenPrompt('Bangers', 'Dinkers').body).toBe('Bangers broke the Court Rule. Dinkers win the rally.');
   });
 });
 

@@ -26,11 +26,13 @@ const TURN_SETTLE_MS = 600;
 
 const CAMERA: MediaTrackConstraints = { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } };
 
+/** What's drawn on the video: the two sides, and a tag like "ROUND 4" or "GAME ON". */
 export interface Overlay {
   names: [string, string];
-  scores: [number, number];
   colors: [string, string];
-  serving: 0 | 1;
+  /** Shown beside each name, when there's a score to show (rounds won, say). */
+  scores?: [number, number];
+  label?: string;
 }
 
 interface Segment {
@@ -357,17 +359,25 @@ export class ReplayRecorder {
         ctx.fillStyle = '#fff';
         const name = o.names[t].length > 18 ? `${o.names[t].slice(0, 17)}…` : o.names[t];
         ctx.fillText(name, x + 22 * u, y + rowH / 2);
-        if (o.serving === t) {
-          ctx.fillStyle = '#E8FF3A';
-          ctx.beginPath();
-          ctx.arc(x + boxW - 78 * u, y + rowH / 2, 7 * u, 0, Math.PI * 2);
-          ctx.fill();
+        if (o.scores) {
+          ctx.font = font(30);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = o.colors[t];
+          ctx.fillText(String(o.scores[t]), x + boxW - 16 * u, y + rowH / 2);
         }
-        ctx.font = font(30);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = o.colors[t];
-        ctx.fillText(String(o.scores[t]), x + boxW - 16 * u, y + rowH / 2);
       });
+      // The tag ("ROUND 4"), just under the bar.
+      if (o.label) {
+        ctx.font = font(20);
+        ctx.textAlign = 'left';
+        const lw = ctx.measureText(o.label).width + 24 * u;
+        ctx.fillStyle = '#FF3D8B';
+        ctx.beginPath();
+        ctx.roundRect(x, x + rowH * 2 + 8 * u, lw, 32 * u, 8 * u);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(o.label, x + 12 * u, x + rowH * 2 + 24 * u);
+      }
     }
 
     // The play's name, along the bottom.

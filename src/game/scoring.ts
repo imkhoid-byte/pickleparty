@@ -10,22 +10,7 @@ export interface MatchConfig {
   /** Points needed to win (11, 15 or 21 are common). */
   target: number;
   teamNames: [string, string];
-  /**
-   * Party Rules: quick rally-scoring games built for a party. Next point wins at a tie
-   * one short of the target (6-6 in a game to 7), and the teams switch ends once one
-   * reaches the halfway point, which is when the Bar Tab gets paid.
-   */
-  partyRules?: boolean;
 }
-
-/** Party Rules games: rally scoring to 7. */
-export const PARTY_TARGET = 7;
-
-/** Points ahead needed to win: Party Rules games just need the target (next point wins at 6-6). */
-export const winBy = (config: MatchConfig) => (config.partyRules ? 1 : 2);
-
-/** Party Rules: the teams switch ends when one of them first reaches this score (4 in a game to 7). */
-export const switchAt = (target: number) => Math.ceil(target / 2);
 
 export interface MatchState {
   config: MatchConfig;
@@ -36,13 +21,6 @@ export interface MatchState {
   rallies: number;
   sideOuts: number;
   winner: Team | null;
-  /** Party Rules: the teams have switched ends this game. */
-  switched?: boolean;
-  /**
-   * Party Rules: sips each team owes, paid at the bench when switching ends and at the
-   * end of the game. Kept with the score so Undo takes back the sips with the rally.
-   */
-  tab?: [number, number];
   /** Previous states, newest last, for undo. */
   history: Omit<MatchState, 'history'>[];
 }
@@ -56,7 +34,6 @@ export type MatchEvent =
   | { type: 'tied'; score: number }
   | { type: 'pickleWatch'; team: Team } // `team` is at 0 and close to getting pickled
   | { type: 'streak'; team: Team; length: number }
-  | { type: 'switchEnds' } // Party Rules: halfway, change ends (and pay the tab)
   | { type: 'gameOver'; winner: Team; pickled: boolean };
 
 export const other = (t: Team): Team => (t === 0 ? 1 : 0);
@@ -71,13 +48,12 @@ export function newMatch(config: MatchConfig, firstServer: Team = 0): MatchState
     rallies: 0,
     sideOuts: 0,
     winner: null,
-    ...(config.partyRules ? { switched: false, tab: [0, 0] as [number, number] } : {}),
     history: [],
   };
 }
 
-export function isWin(scores: [number, number], team: Team, target: number, by = 2): boolean {
-  return scores[team] >= target && scores[team] - scores[other(team)] >= by;
+export function isWin(scores: [number, number], team: Team, target: number): boolean {
+  return scores[team] >= target && scores[team] - scores[other(team)] >= 2;
 }
 
 /** Called-out score, e.g. "4-2-1" for doubles side-out or "4-2" otherwise. */
@@ -92,11 +68,7 @@ export function callScore(s: MatchState): string {
 
 function snapshot(s: MatchState): Omit<MatchState, 'history'> {
   const { history: _history, ...rest } = s;
-  return {
-    ...rest,
-    scores: [...rest.scores] as [number, number],
-    ...(rest.tab ? { tab: [...rest.tab] as [number, number] } : {}),
-  };
+  return { ...rest, scores: [...rest.scores] as [number, number] };
 }
 
 /** Count how many points in a row `team` has scored, using the undo history. */
@@ -126,7 +98,6 @@ export function rallyWonBy(
   };
   const events: MatchEvent[] = [];
   const { format, scoring, target } = s.config;
-  const by = winBy(s.config);
 
   const scorePoint = () => {
     next.scores[team] += 1;
@@ -153,7 +124,7 @@ export function rallyWonBy(
   }
 
   const scored = events.some((e) => e.type === 'point');
-  if (scored && isWin(next.scores, team, target, by)) {
+  if (scored && isWin(next.scores, team, target)) {
     next.winner = team;
     events.push({ type: 'gameOver', winner: team, pickled: next.scores[other(team)] === 0 });
     return { state: next, events };
@@ -165,13 +136,9 @@ export function rallyWonBy(
     for (const t of [0, 1] as Team[]) {
       const would = [...next.scores] as [number, number];
       would[t] += 1;
-      if (isWin(would, t, target, by)) events.push({ type: 'gamePoint', team: t });
+      if (isWin(would, t, target)) events.push({ type: 'gamePoint', team: t });
     }
-    // Party Rules: halfway through, the teams change ends (once a game).
-    if (s.config.partyRules && !s.switched && next.scores[team] >= switchAt(target)) {
-      next.switched = true;
-      events.push({ type: 'switchEnds' });
-    }
+
     const loser = other(team);
     if (next.scores[loser] === 0 && next.scores[team] === target - 3) {
       events.push({ type: 'pickleWatch', team: loser });

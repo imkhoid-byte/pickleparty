@@ -50,7 +50,7 @@ export function ReplayPreview({
         <View style={styles.recDot} />
         {count > 0 && <Text style={styles.recText}>{count}</Text>}
       </View>
-      <Text style={styles.tapText}>{saving > 0 ? 'Saving…' : '🎬 Tap to clip'}</Text>
+      <Text style={styles.tapText}>{saving > 0 ? 'Saving…' : '🎬 Tap to clip the last 30 seconds'}</Text>
     </Pressable>
   );
 }
@@ -106,23 +106,21 @@ export function ClipStrip({ clips, saving }: { clips: Clip[]; saving: number }) 
 }
 
 const styles = StyleSheet.create({
+  // Big and in the middle of the screen: during a game there's nothing else to look at.
   preview: {
-    position: 'absolute',
-    right: 10,
-    top: 52,
-    borderRadius: radius.sm,
-    borderWidth: 2,
+    alignSelf: 'center',
+    width: '100%',
+    borderRadius: radius.md,
+    borderWidth: 3,
     borderColor: colors.danger,
     overflow: 'hidden',
     backgroundColor: '#000',
-    zIndex: 15,
-    elevation: 15,
   },
-  previewTall: { width: 96, height: 128 },
-  previewWide: { width: 160, height: 90 },
-  rec: { position: 'absolute', top: 5, left: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
-  recText: { color: '#fff', fontSize: 12, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 3 },
+  previewTall: { maxWidth: 270, aspectRatio: 3 / 4 },
+  previewWide: { maxWidth: 520, aspectRatio: 16 / 9 },
+  rec: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  recDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: colors.danger },
+  recText: { color: '#fff', fontSize: 16, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 3 },
   tapText: {
     position: 'absolute',
     bottom: 0,
@@ -130,9 +128,9 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: 'center',
     color: '#fff',
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '900',
-    paddingVertical: 3,
+    paddingVertical: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   strip: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
