@@ -23,22 +23,20 @@ function Gate() {
   );
 }
 
-/** Web only: unlock speech and sound on the first tap anywhere (see unlockAudio). */
-function useUnlockAudioOnFirstTap() {
+/** Web only: unlock speech and sound on every tap anywhere (see unlockAudio). */
+function useUnlockAudioOnTaps() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    // Every tap, not just the first: iPhone can stop the background silence that keeps the
+    // announcer audible on silent (a call, another app), and only a tap can restart it.
     const events = ['touchend', 'click', 'keydown'] as const;
-    const onTap = () => {
-      unlockAudio();
-      events.forEach((e) => document.removeEventListener(e, onTap, true));
-    };
-    events.forEach((e) => document.addEventListener(e, onTap, true));
-    return () => events.forEach((e) => document.removeEventListener(e, onTap, true));
+    events.forEach((e) => document.addEventListener(e, unlockAudio, true));
+    return () => events.forEach((e) => document.removeEventListener(e, unlockAudio, true));
   }, []);
 }
 
 export default function RootLayout() {
-  useUnlockAudioOnFirstTap();
+  useUnlockAudioOnTaps();
   return (
     <SafeAreaProvider>
       <AppStateProvider>

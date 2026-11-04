@@ -5,6 +5,7 @@ import type { RRSession } from './game/roundRobin';
 import type { RoundsSession } from './game/rounds';
 import { Access, canUsePack, computeAccess, usablePacks } from './monetization/entitlements';
 import { StoreState, fetchStoreState } from './purchases';
+import { setFeedback } from './ui/components';
 import {
   DEFAULT_SETTINGS,
   GameRecord,
@@ -99,6 +100,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }),
     [],
   );
+
+  // Taps everywhere feel and sound the way the player chose.
+  useEffect(() => {
+    setFeedback({ sound: settings.sound && settings.uiSounds, haptics: settings.haptics });
+  }, [settings.sound, settings.uiSounds, settings.haptics]);
 
   useEffect(() => {
     Promise.all([loadSettings(), loadHistory(), loadRoundRobin(), loadRounds()]).then(([s, h, rr, r]) => {

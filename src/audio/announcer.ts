@@ -19,6 +19,7 @@ const SOURCES: Record<SoundId, number> = {
   bonk: require('../../assets/sounds/bonk.wav'),
   whoosh: require('../../assets/sounds/whoosh.wav'),
   drumroll: require('../../assets/sounds/drumroll.wav'),
+  tap: require('../../assets/sounds/tap.wav'),
 };
 
 /** Roughly when each sound has done its thing and the voice can start (ms). */
@@ -33,6 +34,7 @@ const VOICE_DELAY: Record<SoundId, number> = {
   bonk: 300,
   whoosh: 300,
   drumroll: 1400,
+  tap: 0,
 };
 
 const players = new Map<SoundId, AudioPlayer>();
@@ -119,7 +121,9 @@ function cancelSpeech(synth: SpeechSynthesis) {
   lastCancelAt = Date.now();
 }
 
-export function speak(text: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
+export function speak(raw: string, voice: { voice?: string; pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
+  // Word joiners keep "2–1" on one line on screen; voices don't need them (and some trip on them).
+  const text = raw.replace(/\u2060/g, '');
   const synth = browserSpeech();
   if (!synth) {
     try {
@@ -180,11 +184,67 @@ export function speak(text: string, voice: { voice?: string; pitch: number; rate
 // Coming back to the app (or the phone being turned) can leave Safari's speech paused.
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') wakeSpeech();
+    if (document.visibilityState !== 'visible') return;
+    wakeSpeech();
+    // Back in the app: restart the background silence if it was stopped (or the next tap will).
+    keepVoiceAudible();
   });
 }
 
 let unlocked = false;
+
+/**
+ * A WAV of silence (as a data: URL, so there's no file to load): half a second, 8 kHz,
+ * 8-bit mono, every sample at the midpoint (128).
+ */
+function silentWav(): string {
+  const samples = 4000;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const ascii = (at: number, text: string) => [...text].forEach((c, i) => (bytes[at + i] = c.charCodeAt(0)));
+  ascii(0, 'RIFF');
+  view.setUint32(4, 36 + samples, true);
+  ascii(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, 8000, true);
+  view.setUint32(28, 8000, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  ascii(36, 'data');
+  view.setUint32(40, samples, true);
+  bytes.fill(128, 44);
+  let binary = '';
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  return `data:audio/wav;base64,${btoa(binary)}`;
+}
+
+let keepAlive: HTMLAudioElement | null = null;
+
+/**
+ * iPhone Safari mutes spoken words when the ringer switch is on silent, but not media
+ * that's playing. So a silent sound loops in the background: while it plays, the page
+ * counts as playing media and the announcer can be heard even on silent. It has to
+ * start during a tap; after that it's kept going (and restarted when the app comes back).
+ */
+export function keepVoiceAudible() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  try {
+    if (!keepAlive) {
+      keepAlive = document.createElement('audio');
+      keepAlive.src = silentWav();
+      keepAlive.loop = true;
+      keepAlive.setAttribute('playsinline', '');
+      // Not something to send to a TV or show as a track.
+      keepAlive.setAttribute('x-webkit-airplay', 'deny');
+      keepAlive.setAttribute('disableRemotePlayback', '');
+    }
+    if (keepAlive.paused) keepAlive.play().catch(() => {});
+  } catch {
+    // Speech still works with the ringer on.
+  }
+}
 
 /**
  * iPhone browsers only let a page speak or play sound after it has done so
@@ -192,7 +252,10 @@ let unlocked = false;
  * on a timer, after the sound effect) are allowed. Native apps don't need it.
  */
 export function unlockAudio() {
-  if (unlocked || Platform.OS !== 'web') return;
+  if (Platform.OS !== 'web') return;
+  // Every tap makes sure the background silence is still going (it may have been stopped).
+  keepVoiceAudible();
+  if (unlocked) return;
   unlocked = true;
   try {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;

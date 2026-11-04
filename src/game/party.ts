@@ -14,7 +14,8 @@ export type SoundId =
   | 'honk'
   | 'bonk'
   | 'whoosh'
-  | 'drumroll';
+  | 'drumroll'
+  | 'tap';
 
 export interface PartyPrompt {
   emoji: string;

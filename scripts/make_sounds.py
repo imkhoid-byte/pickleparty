@@ -46,8 +46,8 @@ def silence(seconds):
     return np.zeros(int(RATE * seconds))
 
 
-def write(name, sig):
-    sig = sig / (np.max(np.abs(sig)) + 1e-9) * 0.7
+def write(name, sig, peak=0.7):
+    sig = sig / (np.max(np.abs(sig)) + 1e-9) * peak
     data = (sig * 32767).astype(np.int16)
     with wave.open(os.path.join(OUT, name + '.wav'), 'wb') as w:
         w.setnchannels(1)
@@ -148,6 +148,13 @@ def bonk():
     return body + click
 
 
+def tap():
+    """A soft, short pop for button taps: quiet, so it never gets annoying."""
+    x = t(0.07)
+    f = 1100 * np.exp(-x * 30) + 500
+    return np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-x * 60)
+
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [
@@ -164,3 +171,6 @@ if __name__ == '__main__':
     ]:
         write(name, fn())
         print('wrote', name)
+    # UI taps are quieter than the effects.
+    write('tap', tap(), peak=0.3)
+    print('wrote tap')

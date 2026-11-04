@@ -15,7 +15,7 @@ import { ReplayPanel, okToLeave } from '../replay/ReplayPanel';
 import { ClipStrip } from '../replay/ReplayViews';
 import { useReplay } from '../replay/useReplay';
 import { shareImage } from '../shareImage';
-import { Button, Card, Label, Screen, Takeover, tap } from '../ui/components';
+import { Button, Card, Label, Screen, Takeover, celebrate, click, tap } from '../ui/components';
 import { LosersWheel } from '../ui/LosersWheel';
 import { FinalScore, ResultCard } from '../ui/ResultCard';
 import { colors, radius, teamColors } from '../ui/theme';
@@ -54,19 +54,25 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
 
   const back = () => okToLeave(replay) && goBack();
   const problem = scoreProblem(scores);
-  const bump = (t: Team, by: number) =>
+  const bump = (t: Team, by: number) => {
+    tap();
+    click();
     setScores((s) => {
       const next = [...s] as [number, number];
       next[t] = Math.max(0, Math.min(99, next[t] + by));
       return next;
     });
+  };
   /** "They won": the winner's score is at least the target. */
-  const won = (t: Team) =>
+  const won = (t: Team) => {
+    tap();
+    click();
     setScores((s) => {
       const next = [...s] as [number, number];
       next[t] = Math.max(target, next[other(t)] + 2);
       return next;
     });
+  };
 
   const submit = () => {
     if (problem) return;
@@ -79,7 +85,7 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
     setResult(r);
     setWorkout(line);
     setWheelResult(null);
-    tap(settings.haptics);
+    celebrate();
     recordGame({
       id: `${Date.now()}`,
       date: Date.now(),

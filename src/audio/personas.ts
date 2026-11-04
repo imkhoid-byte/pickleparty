@@ -65,6 +65,7 @@ const MOOD: Record<SoundId, Mood> = {
   drumroll: 'drama',
   boing: 'neutral',
   whoosh: 'neutral',
+  tap: 'neutral',
 };
 
 /** How a character talks: what it says before and after a prompt, and how it rewords it. */

@@ -15,10 +15,37 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { playSound } from '../audio/announcer';
 import { colors, radius } from './theme';
 
+/** The player's choices for how taps feel and sound (kept in step with settings by AppState). */
+let feedback = { sound: true, haptics: true };
+export function setFeedback(next: { sound: boolean; haptics: boolean }) {
+  feedback = next;
+}
+
+/**
+ * A tap you can feel: a light buzz in the app; on the web, a short vibration where the
+ * browser allows one (Android; iPhone browsers can't vibrate).
+ */
 export function tap(enabled = true, style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) {
-  if (enabled && Platform.OS !== 'web') Haptics.impactAsync(style).catch(() => {});
+  if (!enabled || !feedback.haptics) return;
+  if (Platform.OS !== 'web') Haptics.impactAsync(style).catch(() => {});
+  else if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(style === Haptics.ImpactFeedbackStyle.Light ? 8 : 20);
+  }
+}
+
+/** A bigger moment (a drink break, a final score): a success buzz. */
+export function celebrate() {
+  if (!feedback.haptics) return;
+  if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  else if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate([15, 60, 25]);
+}
+
+/** A tap you can hear: the soft pop, when tap sounds are on. */
+export function click() {
+  if (feedback.sound) playSound('tap');
 }
 
 export function Screen({
@@ -44,7 +71,16 @@ export function Screen({
       {(title || onBack) && (
         <View style={styles.header}>
           {onBack ? (
-            <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <Pressable
+              onPress={() => {
+                tap();
+                click();
+                onBack();
+              }}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
               <Text style={styles.back}>‹ Back</Text>
             </Pressable>
           ) : (
@@ -91,6 +127,7 @@ export function Button({
       disabled={disabled}
       onPress={() => {
         tap();
+        click();
         onPress();
       }}
       style={({ pressed }) => [
@@ -127,6 +164,7 @@ export function Chip({
       accessibilityState={{ selected }}
       onPress={() => {
         tap();
+        click();
         onPress();
       }}
       style={[

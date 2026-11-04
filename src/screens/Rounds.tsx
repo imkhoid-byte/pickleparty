@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -25,7 +26,7 @@ import { usableAnnouncer } from '../monetization/entitlements';
 import { ReplayPanel, okToLeave } from '../replay/ReplayPanel';
 import { useReplay } from '../replay/useReplay';
 import { ANNOUNCER_ART } from '../ui/announcerArt';
-import { Button, Card, Label, Screen, Takeover, tap } from '../ui/components';
+import { Button, Card, Label, Screen, Takeover, celebrate, tap } from '../ui/components';
 import { colors, radius, teamColors } from '../ui/theme';
 import { useScreenAwake } from '../ui/useScreenAwake';
 
@@ -88,7 +89,8 @@ function RoundsGame({ session }: { session: RoundsSession }) {
     setCard(null);
     const text = breakText(result);
     setDrinkBreak(text);
-    tap(settings.haptics);
+    tap(true, Haptics.ImpactFeedbackStyle.Heavy);
+    celebrate();
     announce(
       { emoji: text.swept ? '🥒' : '🍻', title: text.title, body: text.body, big: true, sound: text.swept ? 'airhorn' : 'kazoo' },
       voice,

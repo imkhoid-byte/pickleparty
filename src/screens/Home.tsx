@@ -84,6 +84,7 @@ export function Home() {
       <View style={styles.row}>
         <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
         <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
+        <Chip label="👆 Tap sounds" selected={settings.uiSounds} onPress={() => updateSettings({ uiSounds: !settings.uiSounds })} />
       </View>
       {settings.voice && (
         <View style={styles.row}>

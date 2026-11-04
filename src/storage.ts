@@ -22,6 +22,8 @@ export interface Settings {
   haptics: boolean;
   /** Sound effects on big moments. */
   sound: boolean;
+  /** A soft pop when buttons are tapped. */
+  uiSounds: boolean;
   /** Read the drink breaks, rotations and workouts out loud, by name. */
   voice: boolean;
   /** Drinking game, Calm: just the rounds and the drinks (no Party Cards at the break). */
@@ -71,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   activePacks: ['classic'],
   haptics: true,
   sound: true,
+  uiSounds: true,
   voice: true,
   calm: false,
   chaos: false,
