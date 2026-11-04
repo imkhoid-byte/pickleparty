@@ -1,10 +1,11 @@
-// The drinking game: King of the Court in 3-point rounds.
+// The drinking game: King of the Court in 3-point rounds, doubles or singles.
 //
-// Four players are on court as two pairs. They play 3 points (rally scoring), then one
+// Four players are on court as two pairs (or two players, in singles). They play 3 points (rally scoring), then one
 // tap enters the result. At the break everyone drinks a sip for every point their side
 // lost, the losing pair rotates off, and the next two waiting players come on. Winners
 // stay on, but only for MAX_REIGN rounds in a row, so everyone gets to play. With exactly
-// four players nobody waits, so partners shuffle instead.
+// four players in doubles nobody waits, so partners shuffle instead; with two in singles,
+// the same two just play on.
 //
 // Pure functions, no React or storage: easy to test.
 
@@ -17,7 +18,8 @@ export const SWEEP_BONUS = 1;
 /** Every this many rounds, the break is also a water break. */
 export const HYDRATE_EVERY = 6;
 
-export type Pair = [string, string];
+/** One side of the net: two players in doubles, one in singles. */
+export type Side = string[];
 
 /** A round's score: points won by [kings, challengers]. */
 export type RoundScore = [number, number];
@@ -33,7 +35,7 @@ export const ROUND_SCORES: RoundScore[] = [
 export interface RoundResult {
   round: number;
   /** [kings, challengers] as they played the round. */
-  teams: [Pair, Pair];
+  teams: [Side, Side];
   points: RoundScore;
   /** Sips each player on court drinks at the break. */
   sips: Record<string, number>;
@@ -48,7 +50,7 @@ export interface RoundsSession {
   /** Everyone who has played this session, in the order they joined. */
   players: string[];
   /** On court: [kings (stayed on), challengers]. */
-  court: [Pair, Pair];
+  court: [Side, Side];
   /** Waiting to play, next up first. */
   queue: string[];
   /** Straight round wins by the kings. */
@@ -57,7 +59,15 @@ export interface RoundsSession {
   rounds: RoundResult[];
 }
 
-export const pairName = (p: Pair) => p.join(' & ');
+export const pairName = (p: Side) => p.join(' & ');
+
+/** "Ana & Ben win" but "Ana wins". */
+const wins = (p: Side) => `${pairName(p)} ${p.length === 1 ? 'wins' : 'win'}`;
+
+/** Players a side has in this format. */
+export type TeamSize = 1 | 2;
+/** Fewest players for a format: two sides on court. */
+export const minPlayers = (size: TeamSize) => size * 2;
 
 function shuffle<T>(items: T[], rng: () => number): T[] {
   const a = [...items];
@@ -81,20 +91,25 @@ export function cleanNames(names: string[]): string[] {
     });
 }
 
-/** Start a session: four random players on court, everyone else in line. Needs 4 or more. */
-export function startSession(names: string[], rng: () => number = Math.random, now = Date.now()): RoundsSession {
+/**
+ * Start a session: random players on court (two pairs, or two singles players), everyone
+ * else in line. Doubles needs 4 or more players, singles 2 or more.
+ */
+export function startSession(
+  names: string[],
+  size: TeamSize = 2,
+  rng: () => number = Math.random,
+  now = Date.now(),
+): RoundsSession {
   const players = cleanNames(names);
-  if (players.length < 4) throw new Error('The drinking game needs at least 4 players.');
+  if (players.length < minPlayers(size)) throw new Error(`This needs at least ${minPlayers(size)} players.`);
   const order = shuffle(players, rng);
   return {
     id: `${now}`,
     startedAt: now,
     players,
-    court: [
-      [order[0], order[1]],
-      [order[2], order[3]],
-    ],
-    queue: order.slice(4),
+    court: [order.slice(0, size), order.slice(size, size * 2)],
+    queue: order.slice(size * 2),
     reign: 0,
     rounds: [],
   };
@@ -111,9 +126,9 @@ function roundsPlayed(session: RoundsSession): Map<string, number> {
  * With exactly four players, the next partner pairing: everyone partners everyone in
  * turn (AB v CD, then AC v BD, then AD v BC).
  */
-function nextPairing(court: [Pair, Pair], players: string[]): [Pair, Pair] {
+function nextPairing(court: [Side, Side], players: string[]): [Side, Side] {
   const [a, b, c, d] = [...court.flat()].sort((x, y) => players.indexOf(x) - players.indexOf(y));
-  const pairings: [Pair, Pair][] = [
+  const pairings: [Side, Side][] = [
     [
       [a, b],
       [c, d],
@@ -160,11 +175,22 @@ export function recordRound(session: RoundsSession, points: RoundScore): { sessi
     reign = 0;
   }
 
-  let court: [Pair, Pair];
+  let court: [Side, Side];
   let queue = [...session.queue];
   let off: string[] = [];
   let on: string[] = [];
-  if (queue.length >= 2) {
+  if (teams[0].length === 1) {
+    if (queue.length > 0) {
+      // Singles: the loser goes to the back of the line and the next player comes on.
+      on = [queue[0]];
+      queue = [...queue.slice(1), ...leaving];
+      off = [...leaving];
+      court = [staying, on];
+    } else {
+      // Just the two of you: play on, the winner as king.
+      court = [staying, leaving];
+    }
+  } else if (queue.length >= 2) {
     // The leaving pair goes to the back of the line; the next two come on together.
     on = queue.slice(0, 2);
     queue = [...queue.slice(2), ...leaving];
@@ -241,16 +267,18 @@ export function breakText(result: RoundResult): { title: string; body: string; s
   const drink = ([loser, winner] as const)
     .map((t) => {
       const n = result.sips[result.teams[t][0]] ?? 0;
-      return n > 0 ? `${pairName(result.teams[t])}: ${sipsText(n)} each.` : '';
+      return n > 0 ? `${pairName(result.teams[t])}: ${sipsText(n)}${result.teams[t].length > 1 ? ' each' : ''}.` : '';
     })
     .filter(Boolean)
     .join(' ');
   const moves = result.off.length
     ? ` Off: ${result.off.join(' & ')}. On: ${result.on.join(' & ')}.`
-    : ' Switch partners!';
+    : result.teams[0].length === 1
+      ? ' Play on!'
+      : ' Switch partners!';
   const water = result.round % HYDRATE_EVERY === 0 ? ' 💧 Water round: everyone drinks a glass of water too.' : '';
   return {
-    title: `${swept ? 'Swept! ' : ''}${pairName(result.teams[winner])} win ${score(Math.max(k, c), Math.min(k, c))}`,
+    title: `${swept ? 'Swept! ' : ''}${wins(result.teams[winner])} ${score(Math.max(k, c), Math.min(k, c))}`,
     body: `Drink up! ${drink}${moves}${water}`,
     swept,
   };

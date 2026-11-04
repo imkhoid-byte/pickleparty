@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useApp } from '../AppState';
-import { cleanNames, startSession } from '../game/rounds';
+import { TeamSize, cleanNames, minPlayers, startSession } from '../game/rounds';
 import { Team } from '../game/scoring';
 import { isAlcoholic } from '../game/spice';
 import { goBack, openRounds, startGame } from '../navigation';
@@ -120,6 +120,8 @@ export function Setup() {
   // The drinking game's players: last time's crew to start with.
   const [players, setPlayers] = useState<string[]>(() => settings.lastPlayers);
   const [draft, setDraft] = useState('');
+  // Doubles (4+ players) or singles (2+): two of you can play too.
+  const [size, setSize] = useState<TeamSize>(() => (settings.lastPlayers.length >= 4 ? 2 : 1));
   const [howTo, setHowTo] = useState<number | null>(() => (settings.seenHowTo ? null : 0));
   // Instant Replay works where the browser can film (the web version for now).
   const [canFilm] = useState(replaySupported);
@@ -144,10 +146,11 @@ export function Setup() {
   const ready = cleanNames(players);
 
   const startRegular = () => startGame(names.map((n, i) => n.trim() || `Team ${i + 1}`) as [string, string], target);
+  const need = minPlayers(size);
   const startDrinking = () => {
-    if (ready.length < 4) return;
+    if (ready.length < need) return;
     updateSettings({ lastPlayers: ready });
-    setRounds(startSession(ready));
+    setRounds(startSession(ready, size));
     openRounds(true);
   };
 
@@ -163,7 +166,7 @@ export function Setup() {
           {(
             [
               ['game', '🏓', 'Regular game', 'Enter the final score. Losers work out.'],
-              ['drink', '🍻', 'Drinking game', '3 points, drink, rotate. King of the Court.'],
+              ['drink', '🍻', 'Drinking game', '3 points, drink, rotate. Doubles or singles.'],
             ] as const
           ).map(([id, emoji, title, blurb]) => (
             <Pressable
@@ -237,12 +240,23 @@ export function Setup() {
             />
             <Button label="Add" small onPress={addPlayers} disabled={!draft.trim()} />
           </View>
+          <Label>Format</Label>
+          <View style={styles.row}>
+            <Chip label="👥 Doubles" selected={size === 2} onPress={() => setSize(2)} />
+            <Chip label="👤 Singles" selected={size === 1} onPress={() => setSize(1)} />
+          </View>
           <Text style={styles.hint}>
-            {ready.length < 4
-              ? `Add at least 4 players (${4 - ready.length} more).`
-              : ready.length === 4
-                ? 'Four players: partners switch every round. Add more and the losers rotate off.'
-                : `${ready.length - 4} waiting at a time: the losers rotate off and the next two come on.`}
+            {ready.length < need
+              ? size === 2 && ready.length >= 2
+                ? `Doubles needs 4 players (${4 - ready.length} more), or switch to singles.`
+                : `Add at least ${need} players (${need - ready.length} more).`
+              : ready.length === need
+                ? size === 2
+                  ? 'Four players: partners switch every round. Add more and the losers rotate off.'
+                  : 'Head to head: the two of you play on, round after round. Add more and the loser rotates off.'
+                : size === 2
+                  ? `${ready.length - 4} waiting at a time: the losers rotate off and the next two come on.`
+                  : `${ready.length - 2} waiting at a time: the loser rotates off and the next player comes on.`}
           </Text>
 
           <Label>Party style</Label>
@@ -284,7 +298,7 @@ export function Setup() {
       {mode === 'game' ? (
         <Button label="Let's Dink 🥒" onPress={startRegular} style={{ marginTop: 12 }} />
       ) : (
-        <Button label="Start King of the Court 🍻" onPress={startDrinking} disabled={ready.length < 4} style={{ marginTop: 12 }} />
+        <Button label="Start King of the Court 🍻" onPress={startDrinking} disabled={ready.length < need} style={{ marginTop: 12 }} />
       )}
       <Text style={styles.link} onPress={() => setHowTo(0)} accessibilityRole="button">
         How does it work?

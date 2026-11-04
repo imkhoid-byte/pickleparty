@@ -16,7 +16,7 @@ import {
 /** No shuffle: players go on court in the order given. */
 const inOrder = () => 0.999;
 const start = (names: string[]) => {
-  const s = startSession(names, inOrder, 1000);
+  const s = startSession(names, 2, inOrder, 1000);
   // Pin the court to the names' order so the tests read clearly.
   const order = [...names];
   return { ...s, court: [[order[0], order[1]], [order[2], order[3]]], queue: order.slice(4) } as RoundsSession;
@@ -114,5 +114,41 @@ describe('the drinking game', () => {
     expect(t[0]).toMatchObject({ roundsWon: 1, pointsWon: 3, sips: 0 });
     expect(t.find((p) => p.name === 'Cal')).toMatchObject({ roundsWon: 0, sips: 4 });
     expect(sessionRecap(s, 'link', '#tag')).toMatch(/Thirstiest: (Cal|Dee) \(4 sips\)/);
+  });
+
+  describe('singles', () => {
+    it('needs just 2 players', () => {
+      expect(() => startSession(['Ana'], 1)).toThrow();
+      const s = startSession(['Ana', 'Ben'], 1);
+      expect(s.court.map((side) => side.length)).toEqual([1, 1]);
+      expect(s.queue).toEqual([]);
+    });
+
+    it('with 2, the same two play on, a sip per point lost', () => {
+      const s: RoundsSession = { ...startSession(['Ana', 'Ben'], 1), court: [['Ana'], ['Ben']] };
+      const { session, result } = recordRound(s, [1, 2]);
+      expect(result.sips).toEqual({ Ana: 2, Ben: 1 });
+      expect(session.court).toEqual([['Ben'], ['Ana']]);
+      const text = breakText(result);
+      expect(text.title).toBe('Ben wins 2\u2060–\u20601');
+      expect(text.body).toBe('Drink up! Ana: 2 sips. Ben: 1 sip. Play on!');
+    });
+
+    it('with 3 or more, the loser rotates off and the next player comes on', () => {
+      const s: RoundsSession = { ...startSession(['Ana', 'Ben', 'Cal'], 1), court: [['Ana'], ['Ben']], queue: ['Cal'] };
+      const { session, result } = recordRound(s, [2, 1]);
+      expect(result.off).toEqual(['Ben']);
+      expect(result.on).toEqual(['Cal']);
+      expect(session.court).toEqual([['Ana'], ['Cal']]);
+      expect(session.queue).toEqual(['Ben']);
+      expect(breakText(result).body).toMatch(/Off: Ben\. On: Cal\./);
+    });
+
+    it(`the king sits after ${MAX_REIGN} straight wins`, () => {
+      let s: RoundsSession = { ...startSession(['Ana', 'Ben', 'Cal'], 1), court: [['Ana'], ['Ben']], queue: ['Cal'] };
+      for (let i = 1; i < MAX_REIGN; i++) s = recordRound(s, [3, 0]).session;
+      const { result } = recordRound(s, [3, 0]);
+      expect(result.off).toEqual(['Ana']);
+    });
   });
 });

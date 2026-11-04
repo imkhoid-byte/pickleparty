@@ -61,6 +61,14 @@ function RoundsGame({ session }: { session: RoundsSession }) {
 
   const [kings, challengers] = session.court;
   const nobodyWaits = session.queue.length === 0;
+  const singles = kings.length === 1;
+  /** What each side of the court is called: Kings and Challengers (singular in singles). */
+  const sideTag = (t: number) => {
+    if (nobodyWaits && !singles) return `Team ${t + 1}`;
+    if (t === 1) return singles ? 'Challenger' : 'Challengers';
+    const king = singles ? '👑 King' : '👑 Kings';
+    return session.reign > 0 ? `${king} · ${session.reign} in a row` : king;
+  };
   const round = session.rounds.length + 1;
   const overlay = useMemo(
     () => ({
@@ -127,7 +135,7 @@ function RoundsGame({ session }: { session: RoundsSession }) {
         {([kings, challengers] as const).map((pair, t) => (
           <View key={t} style={[styles.side, { borderColor: teamColors[t] }]}>
             <Text style={styles.sideTag}>
-              {nobodyWaits ? `Team ${t + 1}` : t === 0 ? (session.reign > 0 ? `👑 Kings · ${session.reign} in a row` : '👑 Kings') : 'Challengers'}
+              {sideTag(t)}
             </Text>
             <Text style={[styles.sideNames, { color: teamColors[t] }]} numberOfLines={2}>
               {pairName(pair)}
@@ -184,7 +192,11 @@ function RoundsGame({ session }: { session: RoundsSession }) {
       <Label>Up next</Label>
       <Card style={{ gap: 10 }}>
         {nobodyWaits ? (
-          <Text style={styles.muted}>Nobody waiting: partners switch every round. Add people to start rotating.</Text>
+          <Text style={styles.muted}>
+            {singles
+              ? 'Nobody waiting: the two of you play on. Add people and the loser rotates off.'
+              : 'Nobody waiting: partners switch every round. Add people to start rotating.'}
+          </Text>
         ) : (
           <View style={styles.queue}>
             {session.queue.map((name, i) => (
@@ -215,7 +227,8 @@ function RoundsGame({ session }: { session: RoundsSession }) {
           <Button label="Add" small onPress={add} disabled={!draft.trim()} />
         </View>
         <Text style={styles.muted}>
-          Losers rotate off; winners stay on for up to {MAX_REIGN} rounds in a row. Tap a name to take them out of the line.
+          {singles ? 'The loser rotates off; the winner stays' : 'Losers rotate off; winners stay'} on for up to {MAX_REIGN} rounds in a
+          row. Tap a name to take them out of the line.
         </Text>
       </Card>
 
