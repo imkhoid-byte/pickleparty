@@ -8,7 +8,7 @@ import { isAlcoholic } from '../game/spice';
 import { goBack, openRounds, startGame } from '../navigation';
 import { replaySupported } from '../replay/useReplay';
 import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
-import { colors, radius, teamColors } from '../ui/theme';
+import { alpha, colors, font, glow, radius, teamColors } from '../ui/theme';
 
 const TEAM_NAMES = [
   'Dink Floyd',
@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: colors.text,
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: font.semi,
     backgroundColor: colors.surface,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderRadius: radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -349,19 +349,27 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.surfaceHi,
+    borderWidth: 1.5,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
     gap: 4,
   },
-  modeOn: { borderColor: colors.pickle },
+  // The chosen game: lit up in pickle green.
+  modeOn: { borderColor: colors.pickle, backgroundColor: alpha(colors.pickle, 0.08), ...glow(colors.pickle) },
   modeEmoji: { fontSize: 30 },
-  modeTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  modeTitle: { color: colors.text, fontSize: 17, fontFamily: font.bold },
   modeBlurb: { color: colors.muted, fontSize: 13, lineHeight: 18 },
-  player: { backgroundColor: colors.surfaceHi, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14 },
-  playerText: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  playerInput: { fontSize: 17, borderColor: colors.surfaceHi },
-  resume: { backgroundColor: colors.orange, borderRadius: radius.md, padding: 14 },
-  resumeText: { color: colors.bg, fontSize: 15, fontWeight: '900', textAlign: 'center' },
+  player: {
+    backgroundColor: colors.surfaceHi,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  playerText: { color: colors.text, fontSize: 16, fontFamily: font.semi },
+  playerInput: { fontSize: 17, borderColor: colors.line },
+  resume: { backgroundColor: colors.orange, borderRadius: radius.md, padding: 14, ...glow(colors.orange) },
+  resumeText: { color: colors.bg, fontSize: 15, fontFamily: font.bold, textAlign: 'center' },
   link: { color: colors.sky, fontSize: 15, fontWeight: '700', textAlign: 'center', paddingVertical: 4 },
 });

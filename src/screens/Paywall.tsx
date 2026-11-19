@@ -17,7 +17,7 @@ import {
 } from '../purchases';
 import { ANNOUNCER_ART } from '../ui/announcerArt';
 import { Button, Card, Screen } from '../ui/components';
-import { colors, radius } from '../ui/theme';
+import { colors, font, radius } from '../ui/theme';
 
 const HEADLINES: Record<PaywallReason, { emoji: string; title: string; sub: string }> = {
   trialEnded: {
@@ -232,10 +232,10 @@ const styles = StyleSheet.create({
   voices: { flexDirection: 'row', gap: 12 },
   voiceArt: { width: 110, height: 110 },
   hero: { alignItems: 'center', gap: 6, marginBottom: 4 },
-  title: { color: colors.pickle, fontSize: 30, fontWeight: '900', textAlign: 'center' },
+  title: { color: colors.pickle, fontSize: 30, fontFamily: font.bold, textAlign: 'center' },
   sub: { color: colors.text, fontSize: 16, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
   benefit: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 4 },
-  benefitName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  benefitName: { color: colors.text, fontSize: 16, fontFamily: font.semi },
   benefitDetail: { color: colors.muted, fontSize: 13 },
   crew: { color: colors.orange, fontSize: 13, fontWeight: '700', marginTop: 6 },
   plan: {
@@ -249,13 +249,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   planOn: { borderColor: colors.pickle },
-  planTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  planPrice: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  planTitle: { color: colors.text, fontSize: 17, fontFamily: font.bold },
+  planPrice: { color: colors.text, fontSize: 16, fontFamily: font.bold },
   badge: {
     color: colors.bg,
     backgroundColor: colors.pickle,
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: font.bold,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.pill,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   legal: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 17 },
   links: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
   link: { color: colors.sky, fontSize: 13, fontWeight: '700' },
-  done: { color: colors.pickle, fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  done: { color: colors.pickle, fontSize: 16, fontFamily: font.semi, textAlign: 'center' },
   trial: { color: colors.orange, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
   input: {

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { APP_LINK, HASHTAG } from '../config';
 import { Button } from '../ui/components';
-import { colors, radius } from '../ui/theme';
+import { colors, font, radius } from '../ui/theme';
 import type { Clip } from './useReplay';
 
 /**
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   previewWide: { maxWidth: 520, aspectRatio: 16 / 9 },
   rec: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
   recDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: colors.danger },
-  recText: { color: '#fff', fontSize: 16, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 3 },
+  recText: { color: '#fff', fontSize: 16, fontFamily: font.bold, textShadowColor: '#000', textShadowRadius: 3 },
   tapText: {
     position: 'absolute',
     bottom: 0,
@@ -129,13 +129,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#fff',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: font.bold,
     paddingVertical: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   strip: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
-  stripTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  stripTitle: { color: colors.text, fontSize: 16, fontFamily: font.bold },
   clip: { width: 170, gap: 6 },
-  clipLabel: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  clipLabel: { color: colors.muted, fontSize: 13, fontFamily: font.semi },
   stripNote: { color: colors.muted, fontSize: 12, textAlign: 'center' },
 });

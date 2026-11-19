@@ -10,7 +10,7 @@ import { renderPenalty } from '../game/spice';
 import { usableAnnouncer } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import { Button, Chip, Screen } from '../ui/components';
-import { colors, radius } from '../ui/theme';
+import { colors, font, lift, radius } from '../ui/theme';
 
 const KIND_STYLE: Record<CardKind, { label: string; color: string }> = {
   dare: { label: CARD_KIND_LABEL.dare.toUpperCase(), color: colors.pink },
@@ -71,7 +71,7 @@ export function Deck() {
         style={[
           styles.card,
           {
-            borderColor: drawn?.locked ? colors.sky : (kind?.color ?? colors.surfaceHi),
+            borderColor: drawn?.locked ? colors.sky : (kind?.color ?? colors.lineStrong),
             transform: [{ scale }, { rotate }],
             opacity: flip,
           },
@@ -124,15 +124,16 @@ const styles = StyleSheet.create({
     minHeight: 360,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    borderWidth: 4,
+    borderWidth: 2,
     padding: 28,
+    ...lift,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 18,
   },
-  peek: { color: colors.sky, fontSize: 13, fontWeight: '900', letterSpacing: 2 },
-  kind: { fontSize: 16, fontWeight: '900', letterSpacing: 3 },
-  text: { color: colors.text, fontSize: 26, fontWeight: '800', textAlign: 'center', lineHeight: 34 },
+  peek: { color: colors.sky, fontSize: 13, fontFamily: font.bold, letterSpacing: 2 },
+  kind: { fontSize: 16, fontFamily: font.bold, letterSpacing: 3 },
+  text: { color: colors.text, fontSize: 26, fontFamily: font.semi, textAlign: 'center', lineHeight: 34 },
   pack: { color: colors.muted, fontSize: 14, fontWeight: '700' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   modes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

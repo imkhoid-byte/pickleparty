@@ -6,7 +6,7 @@ import { APP_LINK, HASHTAG } from '../config';
 import { RRLink, addPlayer, maxCourts, nextRound, pairName, recordResult, standings } from '../game/roundRobin';
 import { goBack } from '../navigation';
 import { Button, Card, Chip, Label, Screen, Takeover } from '../ui/components';
-import { colors, radius, teamColors } from '../ui/theme';
+import { colors, font, radius, teamColors } from '../ui/theme';
 
 export function RoundRobin() {
   const { roundRobin } = useApp();
@@ -224,7 +224,7 @@ function Session() {
 
 const styles = StyleSheet.create({
   intro: { color: colors.muted, fontSize: 15, lineHeight: 21 },
-  hype: { color: colors.pickle, fontSize: 18, fontWeight: '900' },
+  hype: { color: colors.pickle, fontSize: 18, fontFamily: font.bold },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
     flex: 1,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  court: { color: colors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
+  court: { color: colors.muted, fontSize: 12, fontFamily: font.bold, letterSpacing: 1.5 },
   hint: { color: colors.muted, fontSize: 13, textAlign: 'center' },
   team: {
     flexDirection: 'row',
@@ -250,9 +250,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 14,
   },
-  teamText: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  teamText: { color: colors.text, fontSize: 18, fontFamily: font.bold },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 10 },
-  rank: { width: 28, color: colors.muted, fontSize: 16, fontWeight: '800' },
-  name: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '800' },
-  record: { color: colors.muted, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  rank: { width: 28, color: colors.muted, fontSize: 16, fontFamily: font.semi },
+  name: { flex: 1, color: colors.text, fontSize: 16, fontFamily: font.semi },
+  record: { color: colors.muted, fontSize: 16, fontFamily: font.semi, fontVariant: ['tabular-nums'] },
 });

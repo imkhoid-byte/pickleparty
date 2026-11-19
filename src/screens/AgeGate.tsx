@@ -1,9 +1,10 @@
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { useApp } from '../AppState';
 import { PRIVACY_URL, TERMS_URL, TERMS_VERSION } from '../config';
 import { Button, Screen } from '../ui/components';
-import { colors } from '../ui/theme';
+import { Float, PopIn } from '../ui/motion';
+import { colors, font } from '../ui/theme';
 
 const LOGO = require('../../assets/brand/logo-badge-512.png');
 
@@ -13,6 +14,9 @@ const LOGO = require('../../assets/brand/logo-badge-512.png');
  */
 export function AgeGate() {
   const { settings, updateSettings } = useApp();
+  // A short phone gets a smaller logo, so the buttons never fall off the screen.
+  const { height } = useWindowDimensions();
+  const logo = height < 720 ? 140 : 220;
   // Coming back to agree to new Terms: keep their spice if their age answer hasn't changed.
   const returning = settings.ageAsked;
   const answer = (adult: boolean) =>
@@ -28,7 +32,12 @@ export function AgeGate() {
   return (
     <Screen scroll={false}>
       <View style={styles.wrap}>
-        <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
+        {/* The first thing anyone sees: the logo lands, then bobs. */}
+        <PopIn>
+          <Float>
+            <Image source={LOGO} style={{ width: logo, height: logo }} accessibilityLabel="PickleParty" />
+          </Float>
+        </PopIn>
         <Text style={styles.title}>{returning ? 'Quick update' : 'Welcome!'}</Text>
         <Text style={styles.body}>
           {returning ? 'We updated our Terms. ' : ''}PickleParty has optional drinking-game modes. Are you of legal
@@ -57,9 +66,8 @@ export function AgeGate() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 20 },
-  logo: { width: 220, height: 220 },
-  title: { color: colors.pickle, fontSize: 40, fontWeight: '900', textAlign: 'center' },
+  wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  title: { color: colors.pickle, fontSize: 40, fontFamily: font.bold, textAlign: 'center' },
   body: { color: colors.text, fontSize: 18, textAlign: 'center', lineHeight: 26 },
   fine: { color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
   link: { color: colors.sky, textDecorationLine: 'underline' },

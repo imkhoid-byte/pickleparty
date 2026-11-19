@@ -7,7 +7,7 @@ import { canUsePack } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import { purchasePack, restorePurchases, storeReady } from '../purchases';
 import { Button, Card, Screen, Takeover } from '../ui/components';
-import { colors } from '../ui/theme';
+import { colors, font } from '../ui/theme';
 
 export function Store() {
   const { settings, updateSettings, access, applyStoreState } = useApp();
@@ -59,7 +59,7 @@ export function Store() {
           <Card style={{ borderWidth: 2, borderColor: colors.pink }}>
             <Text style={styles.name}>👑 Every pack with Pro</Text>
             <Text style={styles.desc}>All packs + new drops, crew stats, round robins and custom cards.</Text>
-            <Text style={[styles.desc, { color: colors.pink, fontWeight: '800' }]}>See Pro →</Text>
+            <Text style={[styles.desc, { color: colors.pink, fontFamily: font.semi }]}>See Pro →</Text>
           </Card>
         </Pressable>
       )}
@@ -84,7 +84,7 @@ export function Store() {
               <Button
                 small
                 label={on ? '✓ In your deck' : 'Add to deck'}
-                variant={on ? 'secondary' : 'primary'}
+                variant={on ? 'ghost' : 'secondary'}
                 onPress={() => toggle(p)}
               />
             ) : storeReady() ? (
@@ -134,9 +134,9 @@ export function Store() {
 const styles = StyleSheet.create({
   intro: { color: colors.muted, fontSize: 15 },
   row: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 6 },
-  name: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  name: { color: colors.text, fontSize: 20, fontFamily: font.bold },
   desc: { color: colors.muted, fontSize: 14, marginTop: 2 },
-  season: { color: colors.orange, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginTop: 2 },
-  tag: { color: colors.orange, fontSize: 12, fontWeight: '800', marginTop: 4 },
+  season: { color: colors.orange, fontSize: 12, fontFamily: font.bold, letterSpacing: 0.5, marginTop: 2 },
+  tag: { color: colors.orange, fontSize: 12, fontFamily: font.semi, marginTop: 4 },
   message: { color: colors.pickle, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 });

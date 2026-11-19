@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { announce, hush } from '../audio/announcer';
@@ -27,7 +28,8 @@ import { ReplayPanel, okToLeave } from '../replay/ReplayPanel';
 import { useReplay } from '../replay/useReplay';
 import { ANNOUNCER_ART } from '../ui/announcerArt';
 import { Button, Card, Label, Screen, Takeover, celebrate, tap } from '../ui/components';
-import { colors, radius, teamColors } from '../ui/theme';
+import { alpha, colors, font, glow, gradients, radius, teamColors } from '../ui/theme';
+import { Pop, usePressScale } from '../ui/motion';
 import { useScreenAwake } from '../ui/useScreenAwake';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -127,23 +129,25 @@ function RoundsGame({ session }: { session: RoundsSession }) {
     setRounds(null);
   };
 
-  /** "Ana & Ben 2–1": a result button, colored for the side that won it. */
-  const resultLabel = ([k, c]: RoundScore) => `${pairName(k > c ? kings : challengers)}\n${Math.max(k, c)}–${Math.min(k, c)}`;
 
   return (
     <Screen title={`Round ${round}`} onBack={leave}>
       {/* Who's on court. */}
       <View style={styles.court}>
         {([kings, challengers] as const).map((pair, t) => (
-          <View key={t} style={[styles.side, { borderColor: teamColors[t] }]}>
-            <Text style={styles.sideTag}>
-              {sideTag(t)}
-            </Text>
-            <Text style={[styles.sideNames, { color: teamColors[t] }]} numberOfLines={2}>
-              {pairName(pair)}
-            </Text>
-          </View>
+          // A side pops when new players step onto it.
+          <Pop key={t} trigger={pairName(pair)} style={{ flex: 1 }}>
+            <View style={[styles.side, { borderColor: alpha(teamColors[t], 0.7), backgroundColor: alpha(teamColors[t], 0.07) }]}>
+              <Text style={styles.sideTag}>{sideTag(t)}</Text>
+              <Text style={[styles.sideNames, { color: teamColors[t] }]} numberOfLines={2}>
+                {pairName(pair)}
+              </Text>
+            </View>
+          </Pop>
         ))}
+        <View style={styles.vs} pointerEvents="none">
+          <Text style={styles.vsText}>VS</Text>
+        </View>
       </View>
 
       {rule && (
@@ -170,16 +174,13 @@ function RoundsGame({ session }: { session: RoundsSession }) {
         {ROUND_SCORES.map((points) => {
           const kingsWon = points[0] > points[1];
           return (
-            <Pressable
+            <ResultTile
               key={points.join('-')}
+              score={`${Math.max(...points)}–${Math.min(...points)}`}
+              name={pairName(kingsWon ? kings : challengers)}
+              kings={kingsWon}
               onPress={() => enter(points)}
-              style={[styles.resultBtn, { backgroundColor: kingsWon ? colors.pickle : colors.pink }]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.resultText} numberOfLines={3}>
-                {resultLabel(points)}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -239,9 +240,7 @@ function RoundsGame({ session }: { session: RoundsSession }) {
           <Label>Tonight</Label>
           <Card style={{ gap: 6 }}>
             {board.slice(0, 3).map((p, i) => (
-              <Text key={p.name} style={styles.boardRow}>
-                {MEDALS[i]} {p.name}: {p.roundsWon} won · {p.pointsWon} pts
-              </Text>
+              <BoardRow key={p.name} place={MEDALS[i]} name={p.name} stats={`${p.roundsWon} won · ${p.pointsWon} pts`} />
             ))}
             {thirstiest && thirstiest.sips > 0 && (
               <Text style={styles.muted}>
@@ -261,6 +260,7 @@ function RoundsGame({ session }: { session: RoundsSession }) {
           body={drinkBreak.body}
           accent={drinkBreak.swept ? colors.orange : colors.pickle}
           speaker={speaker}
+          confetti={drinkBreak.swept}
           onClose={nextRound}
         >
           <Button label={`▶ Round ${round}`} onPress={nextRound} />
@@ -275,12 +275,21 @@ function RoundsGame({ session }: { session: RoundsSession }) {
           <Button label="Keep playing" variant="ghost" onPress={() => setConfirmEnd(false)} />
         </Takeover>
       ) : summary ? (
-        <Takeover visible emoji="👑" title={board[0]?.roundsWon ? `${board[0].name} rules the court` : 'Good night!'} onClose={() => setSummary(false)}>
-          <View style={{ gap: 6, alignSelf: 'stretch' }}>
+        <Takeover
+          visible
+          confetti
+          emoji="👑"
+          title={board[0]?.roundsWon ? `${board[0].name} rules the court` : 'Good night!'}
+          onClose={() => setSummary(false)}
+        >
+          <View style={styles.board}>
             {board.map((p, i) => (
-              <Text key={p.name} style={styles.boardRow}>
-                {MEDALS[i] ?? `${i + 1}.`} {p.name}: {p.roundsWon} won · {p.pointsWon} pts · 🍺 {p.sips}
-              </Text>
+              <BoardRow
+                key={p.name}
+                place={MEDALS[i] ?? `${i + 1}.`}
+                name={p.name}
+                stats={`${p.roundsWon} won · ${p.pointsWon} pts · 🍺 ${p.sips}`}
+              />
             ))}
           </View>
           <Button label="📣 Share the night" onPress={() => Share.share({ message: sessionRecap(session, APP_LINK, HASHTAG) }).catch(() => {})} />
@@ -291,39 +300,104 @@ function RoundsGame({ session }: { session: RoundsSession }) {
   );
 }
 
+/** One way a round can end: the score, big, over who won it. Colored for that side. */
+function ResultTile({ score, name, kings, onPress }: { score: string; name: string; kings: boolean; onPress: () => void }) {
+  const press = usePressScale(0.94);
+  const color = kings ? colors.pickle : colors.pink;
+  return (
+    <Animated.View style={[styles.resultWrap, glow(color), { transform: [{ scale: press.scale }] }]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="button"
+        accessibilityLabel={`${name}, ${score}`}
+        style={styles.resultPress}
+      >
+        <LinearGradient colors={kings ? gradients.pickle : gradients.pink} style={styles.resultBtn}>
+          <Text style={[styles.resultScore, !kings && { color: colors.text }]}>{score}</Text>
+          <Text style={[styles.resultName, !kings && { color: colors.text }]} numberOfLines={2}>
+            {name}
+          </Text>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** A leaderboard line: place, name, and the numbers lined up on the right. */
+function BoardRow({ place, name, stats }: { place: string; name: string; stats: string }) {
+  return (
+    <View style={styles.boardRow}>
+      <Text style={styles.boardPlace}>{place}</Text>
+      <Text style={styles.boardName} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.boardStats}>{stats}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  court: { flexDirection: 'row', gap: 10 },
+  court: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
   side: {
     flex: 1,
-    padding: 12,
+    padding: 14,
     borderRadius: radius.md,
-    borderWidth: 2,
-    backgroundColor: colors.surface,
+    borderWidth: 1.5,
     gap: 4,
-    minHeight: 92,
+    minHeight: 96,
+    justifyContent: 'center',
   },
-  sideTag: { color: colors.muted, fontSize: 12, fontWeight: '800' },
-  sideNames: { fontSize: 20, fontWeight: '900' },
-  rule: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 12, borderLeftWidth: 4, borderLeftColor: colors.orange },
-  courtRule: { borderLeftColor: colors.danger },
-  ruleText: { color: colors.text, fontSize: 15, fontWeight: '700', lineHeight: 21 },
-  ruleLabel: { color: colors.orange, fontWeight: '900' },
-  how: { color: colors.text, fontSize: 15, textAlign: 'center', lineHeight: 21 },
-  results: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  resultBtn: {
-    width: '48%',
-    flexGrow: 1,
-    minHeight: 76,
-    borderRadius: radius.md,
+  sideTag: { color: colors.muted, fontSize: 12, fontFamily: font.semi, letterSpacing: 0.4 },
+  sideNames: { fontSize: 21, fontFamily: font.bold, lineHeight: 25 },
+  // The badge between the two sides.
+  vs: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 36,
+    height: 36,
+    marginLeft: -18,
+    marginTop: -18,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    backgroundColor: colors.bg,
+    borderWidth: 1.5,
+    borderColor: colors.lineStrong,
   },
-  resultText: { color: colors.bg, fontSize: 17, fontWeight: '900', textAlign: 'center', lineHeight: 22 },
+  vsText: { color: colors.text, fontSize: 12, fontFamily: font.bold, letterSpacing: 0.5 },
+  rule: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.orange,
+  },
+  courtRule: { borderLeftColor: colors.danger },
+  ruleText: { color: colors.text, fontSize: 15, fontWeight: '700', lineHeight: 21 },
+  ruleLabel: { color: colors.orange, fontFamily: font.bold },
+  how: { color: colors.text, fontSize: 15, textAlign: 'center', lineHeight: 21 },
+  results: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  resultWrap: { width: '47%', flexGrow: 1, borderRadius: radius.md },
+  resultPress: { borderRadius: radius.md, overflow: 'hidden' },
+  resultBtn: { minHeight: 92, alignItems: 'center', justifyContent: 'center', padding: 10, gap: 2 },
+  resultScore: { color: colors.onPickle, fontSize: 32, fontFamily: font.bold, lineHeight: 36, fontVariant: ['tabular-nums'] },
+  resultName: { color: colors.onPickle, fontSize: 15, fontFamily: font.semi, textAlign: 'center', opacity: 0.85 },
   link: { color: colors.muted, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   queue: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  queueChip: { backgroundColor: colors.surfaceHi, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 12 },
-  queueText: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  queueChip: {
+    backgroundColor: colors.surfaceHi,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  queueText: { color: colors.text, fontSize: 15, fontFamily: font.semi },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
     flex: 1,
@@ -337,5 +411,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
-  boardRow: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  board: { gap: 8, alignSelf: 'stretch' },
+  boardRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  boardPlace: { width: 28, color: colors.muted, fontSize: 16, fontFamily: font.semi, textAlign: 'center' },
+  boardName: { flex: 1, color: colors.text, fontSize: 17, fontFamily: font.semi },
+  boardStats: { color: colors.muted, fontSize: 14, fontFamily: font.medium, fontVariant: ['tabular-nums'] },
 });

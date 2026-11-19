@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius } from './theme';
+import { colors, font, radius } from './theme';
 
 const SPIN_MS = 3000;
 
@@ -73,7 +73,7 @@ export function LosersWheel({
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 10, alignSelf: 'stretch' },
   wheel: { fontSize: 72 },
-  title: { color: colors.orange, fontSize: 28, fontWeight: '900', textAlign: 'center' },
+  title: { color: colors.orange, fontSize: 28, fontFamily: font.bold, textAlign: 'center' },
   slot: {
     alignSelf: 'stretch',
     minHeight: 120,
@@ -86,5 +86,5 @@ const styles = StyleSheet.create({
   },
   slotDone: { borderColor: colors.orange },
   option: { color: colors.muted, fontSize: 18, fontWeight: '700', textAlign: 'center', lineHeight: 25 },
-  optionDone: { color: colors.text, fontSize: 21, fontWeight: '900', lineHeight: 28 },
+  optionDone: { color: colors.text, fontSize: 21, fontFamily: font.bold, lineHeight: 28 },
 });

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { previewAnnouncer } from '../audio/announcer';
@@ -11,8 +11,9 @@ import { SPICES, isAlcoholic } from '../game/spice';
 import { leaderboard } from '../game/stats';
 import { autoPaywall, canUseAnnouncer, canUsePack, usableAnnouncer } from '../monetization/entitlements';
 import { openPaywall, openRounds } from '../navigation';
-import { Button, Chip, Label, Screen, Takeover } from '../ui/components';
-import { colors, radius } from '../ui/theme';
+import { Button, Card, Chip, Label, Screen, Takeover, click, tap } from '../ui/components';
+import { Appear, Breathe, Float, usePressScale } from '../ui/motion';
+import { alpha, colors, font, radius } from '../ui/theme';
 
 const LOGO = require('../../assets/brand/logo-badge-512.png');
 
@@ -25,8 +26,7 @@ export function Home() {
   const announcer = usableAnnouncer(settings.announcer, access);
   // After the trial, remind players of the cards they wrote (still saved, just out of the deck).
   const savedCards = settings.customCards.length;
-  const myCardsLabel =
-    !access.isPro && savedCards > 0 ? `✏️ ${savedCards} card${savedCards === 1 ? '' : 's'} waiting 🔒` : '✏️ My Cards';
+  const waitingCards = !access.isPro && savedCards > 0;
 
   // The only automatic paywall: once, right after the free trial ends.
   useEffect(() => {
@@ -40,7 +40,13 @@ export function Home() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
+        {/* The logo bobs gently over a breathing glow. */}
+        <View style={styles.logoWrap}>
+          <Breathe style={styles.logoGlow} />
+          <Float>
+            <Image source={LOGO} style={styles.logo} accessibilityLabel="PickleParty" />
+          </Float>
+        </View>
         <Text style={styles.tagline}>Play hard. Cause chaos. Don&apos;t get pickled.</Text>
       </View>
 
@@ -48,26 +54,28 @@ export function Home() {
       <ProBadge />
       <SeasonalBanner />
 
-      <Button label="🏓  New Game" onPress={() => router.push('/setup')} />
-      <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
-      <View style={styles.grid}>
-        <Button label="🏆 Stats" variant="secondary" style={styles.cell} onPress={() => router.push('/stats')} />
-        <Button
-          label={roundRobin?.rounds.length ? `🏟️ Round ${roundRobin.rounds.length} live` : '🏟️ Round Robin'}
-          variant="secondary"
-          style={styles.cell}
+      <Appear delay={80} style={styles.block}>
+        <Button label="🏓  New Game" onPress={() => router.push('/setup')} />
+        <Button label="🃏  Draw a Party Card" variant="pink" onPress={() => router.push('/deck')} />
+      </Appear>
+      <Appear delay={160} style={styles.grid}>
+        <Tile emoji="🏆" label="Stats" onPress={() => router.push('/stats')} />
+        <Tile
+          emoji="🏟️"
+          label={roundRobin?.rounds.length ? `Round ${roundRobin.rounds.length} live` : 'Round Robin'}
           onPress={() => (access.isPro ? router.push('/roundrobin') : openPaywall('roundRobin'))}
         />
-        <Button label="🎁 Packs" variant="secondary" style={styles.cell} onPress={() => router.push('/packs')} />
-        <Button
-          label={myCardsLabel}
-          variant="secondary"
-          style={styles.cell}
+        <Tile emoji="🎁" label="Packs" onPress={() => router.push('/packs')} />
+        <Tile
+          emoji={waitingCards ? '🔒' : '✏️'}
+          label={waitingCards ? `${savedCards} card${savedCards === 1 ? '' : 's'} waiting` : 'My Cards'}
           onPress={() => (access.isPro ? router.push('/mycards') : openPaywall('customCards'))}
         />
-      </View>
+      </Appear>
 
+      <Appear delay={240} style={styles.block}>
       <Label>Spice level</Label>
+      <Card style={styles.group}>
       <View style={styles.row}>
         {SPICES.filter((s) => settings.ageConfirmed || !isAlcoholic(s.id)).map((s) => (
           <Chip
@@ -80,7 +88,9 @@ export function Home() {
         ))}
       </View>
       <Text style={styles.muted}>{SPICES.find((s) => s.id === settings.spice)?.blurb}</Text>
+      </Card>
       <Label>Announcer</Label>
+      <Card style={styles.group}>
       <View style={styles.row}>
         <Chip label="🔊 Sound effects" selected={settings.sound} onPress={() => updateSettings({ sound: !settings.sound })} />
         <Chip label="🗣️ Voice" selected={settings.voice} onPress={() => updateSettings({ voice: !settings.voice })} />
@@ -113,6 +123,7 @@ export function Home() {
           ? `${ANNOUNCERS.find((a) => a.id === announcer)?.blurb ?? ''} Calls out the drinks, the rotations and the workouts by name. Tap one to hear it.`
           : 'Calls out the drinks, the rotations and the workouts by name, so nobody has to check the phone.'}
       </Text>
+      </Card>
       {!settings.ageConfirmed && (
         <Text style={styles.link} onPress={() => updateSettings({ ageAsked: false })}>
           21+? Unlock drinking modes
@@ -126,6 +137,7 @@ export function Home() {
           <Stat value={champ ? champ.name : '—'} label="top dog" />
         </View>
       )}
+      </Appear>
       <Takeover
         visible={askWild}
         emoji="🔥"
@@ -226,6 +238,34 @@ function ProBadge() {
   );
 }
 
+/** One of the four places to go from home: an icon in a soft square, and its name. */
+function Tile({ emoji, label, onPress }: { emoji: string; label: string; onPress: () => void }) {
+  const press = usePressScale(0.95);
+  return (
+    <Animated.View style={[styles.tileWrap, { transform: [{ scale: press.scale }] }]}>
+      <Pressable
+        onPress={() => {
+          tap();
+          click();
+          onPress();
+        }}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={styles.tile}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <View style={styles.tileIcon}>
+          <Text style={styles.tileEmoji}>{emoji}</Text>
+        </View>
+        <Text style={styles.tileLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function Stat({ value, label }: { value: string | number; label: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
@@ -238,10 +278,44 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: 8 },
-  logo: { width: 250, height: 250 },
-  tagline: { color: colors.muted, fontSize: 16, fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  hero: { alignItems: 'center', paddingTop: 4 },
+  logoWrap: { width: 230, height: 230, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 230, height: 230 },
+  // A soft pickle-green light behind the logo.
+  logoGlow: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: alpha(colors.pickle, 0.2),
+    boxShadow: `0px 0px 70px 30px ${alpha(colors.pickle, 0.28)}`,
+  },
+  tagline: { color: colors.muted, fontSize: 17, fontFamily: font.medium, marginTop: 4, textAlign: 'center' },
+  block: { gap: 14 },
+  group: { gap: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  tileWrap: { flexBasis: '46%', flexGrow: 1 },
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 64,
+    paddingHorizontal: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  tileIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceHi,
+  },
+  tileEmoji: { fontSize: 20 },
+  tileLabel: { flex: 1, color: colors.text, fontSize: 16, fontFamily: font.semi },
   resume: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,11 +323,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   resumeMain: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, gap: 2 },
-  resumeTitle: { color: colors.bg, fontSize: 17, fontWeight: '900' },
+  resumeTitle: { color: colors.bg, fontSize: 17, fontFamily: font.bold },
   resumeScore: { color: colors.bg, fontSize: 14, fontWeight: '700' },
   resumeClose: { paddingHorizontal: 16, paddingVertical: 12 },
-  resumeCloseText: { color: colors.bg, fontSize: 18, fontWeight: '900' },
-  cell: { flexBasis: '46%', flexGrow: 1, paddingVertical: 14 },
+  resumeCloseText: { color: colors.bg, fontSize: 18, fontFamily: font.bold },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   muted: { color: colors.muted, fontSize: 14 },
   link: { color: colors.sky, fontSize: 14, fontWeight: '700' },
@@ -261,19 +334,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 2,
-    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     gap: 8,
   },
-  badgeText: { color: colors.text, fontSize: 14, fontWeight: '800', flexShrink: 1 },
+  badgeText: { color: colors.text, fontSize: 14, fontFamily: font.semi, flexShrink: 1 },
   stats: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
     paddingVertical: 16,
     marginTop: 8,
   },
-  statValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  statValue: { color: colors.text, fontSize: 22, fontFamily: font.bold },
 });

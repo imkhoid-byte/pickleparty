@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { APP_LINK } from '../config';
 import { Team, other } from '../game/scoring';
-import { colors, radius, teamColors } from './theme';
+import { colors, font, radius, teamColors } from './theme';
 
 const LOGO = require('../../assets/brand/logo-badge-512.png');
 
@@ -51,7 +51,8 @@ export const ResultCard = forwardRef<View, { result: FinalScore }>(function Resu
 });
 
 const styles = StyleSheet.create({
-  frame: { alignSelf: 'stretch', backgroundColor: colors.surface, padding: 6 },
+  // The page's own tone here, so on screen the frame disappears into it.
+  frame: { alignSelf: 'stretch', backgroundColor: '#1A0C31', padding: 6 },
   card: {
     width: '100%',
     maxWidth: 300,
@@ -59,16 +60,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.bg,
     borderRadius: radius.lg,
-    borderWidth: 3,
-    paddingVertical: 18,
+    borderWidth: 2,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     gap: 4,
   },
   logo: { width: 76, height: 76 },
-  badge: { fontSize: 16, fontWeight: '900', letterSpacing: 1.5, marginTop: 4 },
-  winner: { fontSize: 28, fontWeight: '900', textAlign: 'center' },
-  score: { color: colors.text, fontSize: 58, fontWeight: '900', fontVariant: ['tabular-nums'], lineHeight: 66 },
+  badge: { fontSize: 16, fontFamily: font.bold, letterSpacing: 1.5, marginTop: 4 },
+  winner: { fontSize: 28, fontFamily: font.bold, textAlign: 'center' },
+  score: { color: colors.text, fontSize: 58, fontFamily: font.bold, fontVariant: ['tabular-nums'], lineHeight: 66 },
   loser: { color: colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   meta: { color: colors.muted, fontSize: 13, fontWeight: '600', marginTop: 4 },
-  footer: { color: colors.pickle, fontSize: 12, fontWeight: '800', marginTop: 8, textAlign: 'center' },
+  footer: { color: colors.pickle, fontSize: 12, fontFamily: font.semi, marginTop: 8, textAlign: 'center' },
 });

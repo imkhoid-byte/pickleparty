@@ -39,6 +39,10 @@ Built with Expo (React Native + TypeScript), so the same code ships to iOS, Andr
 
 💋 **Date Night** (21+ only) is a couples pack. Every dare involves only your own partner, everyone has to opt in each time it's switched on, and any card can be passed.
 
+## Design
+
+"Neon court at night" (`src/ui/theme.ts`): one deep gradient background with a floodlight glow, raised surfaces with hairline edges, gradient buttons that glow in their own color, and Fredoka as the display face (rounded, like the logo) with the system font for long text. Motion lives in `src/ui/motion.tsx` and is kept small: screens ease in, buttons and tiles spring when pressed, pop-ups land with a bounce, numbers and chips pop when they change, the logo bobs, and a win gets one burst of confetti. Everything animates transform and opacity only (native driver in the app), and it all switches off with the phone's Reduce Motion setting.
+
 ## Run it
 
 ```bash

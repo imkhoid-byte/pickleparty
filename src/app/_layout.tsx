@@ -1,3 +1,4 @@
+import { Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold, useFonts } from '@expo-google-fonts/fredoka';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -12,13 +13,17 @@ import { colors } from '../ui/theme';
 
 function Gate() {
   const { ready, settings } = useApp();
-  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  // The display face. If it can't load, the app still opens (in the system font).
+  const [fontsReady, fontError] = useFonts({ Fredoka_500Medium, Fredoka_600SemiBold, Fredoka_700Bold });
+  if (!ready || !(fontsReady || fontError)) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   // First launch, or the Terms changed since the player agreed to them.
   if (!settings.ageAsked || settings.termsVersion !== TERMS_VERSION) return <AgeGate />;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="pro" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="match" options={{ gestureEnabled: false }} />
+      {/* A game in progress shouldn't be swiped away by accident. */}
+      <Stack.Screen name="game" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="rounds" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }

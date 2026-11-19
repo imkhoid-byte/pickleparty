@@ -18,7 +18,8 @@ import { shareImage } from '../shareImage';
 import { Button, Card, Label, Screen, Takeover, celebrate, click, tap } from '../ui/components';
 import { LosersWheel } from '../ui/LosersWheel';
 import { FinalScore, ResultCard } from '../ui/ResultCard';
-import { colors, radius, teamColors } from '../ui/theme';
+import { alpha, colors, font, radius, teamColors } from '../ui/theme';
+import { Appear, Confetti, Pop, PopIn } from '../ui/motion';
 import { useScreenAwake } from '../ui/useScreenAwake';
 
 export function shareText(r: FinalScore): string {
@@ -143,12 +144,18 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
   if (result) {
     return (
       <Screen title="Final score" onBack={back}>
-        <ResultCard ref={cardRef} result={result} />
+        <Confetti />
+        {/* The card lands with a bounce; the workout follows. */}
+        <PopIn>
+          <ResultCard ref={cardRef} result={result} />
+        </PopIn>
+        <Appear delay={250}>
         <Card style={styles.workout}>
           <Text style={styles.workoutTitle}>💪 Workout time</Text>
           <Text style={styles.workoutText}>{workout}</Text>
           {wheelResult && <Text style={styles.wheelResult}>🎡 {wheelResult}</Text>}
         </Card>
+        </Appear>
         <Button
           label="📣 Share the result"
           onPress={() => shareImage(resultImage?.key === imageKey ? resultImage.uri : null, shareText(result))}
@@ -186,7 +193,9 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
         <Text style={[styles.matchName, { color: teamColors[0] }]} numberOfLines={2}>
           {teamNames[0]}
         </Text>
-        <Text style={styles.vs}>vs</Text>
+        <View style={styles.vsBadge}>
+          <Text style={styles.vs}>VS</Text>
+        </View>
         <Text style={[styles.matchName, { color: teamColors[1] }]} numberOfLines={2}>
           {teamNames[1]}
         </Text>
@@ -200,7 +209,7 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
 
       <Label>Final score</Label>
       {([0, 1] as Team[]).map((t) => (
-        <View key={t} style={[styles.scoreRow, { borderColor: teamColors[t] }]}>
+        <View key={t} style={[styles.scoreRow, { borderColor: alpha(teamColors[t], 0.7), backgroundColor: alpha(teamColors[t], 0.06) }]}>
           <Pressable onPress={() => won(t)} style={{ flex: 1 }} accessibilityRole="button" accessibilityHint="Mark this team as the winner">
             <Text style={[styles.scoreName, { color: teamColors[t] }]} numberOfLines={2}>
               {teamNames[t]}
@@ -210,7 +219,9 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
           <Pressable onPress={() => bump(t, -1)} style={styles.step} accessibilityRole="button" accessibilityLabel={`${teamNames[t]} minus one`}>
             <Text style={styles.stepText}>−</Text>
           </Pressable>
-          <Text style={[styles.scoreNum, { color: teamColors[t] }]}>{scores[t]}</Text>
+          <Pop trigger={scores[t]}>
+            <Text style={[styles.scoreNum, { color: teamColors[t] }]}>{scores[t]}</Text>
+          </Pop>
           <Pressable onPress={() => bump(t, 1)} style={styles.step} accessibilityRole="button" accessibilityLabel={`${teamNames[t]} plus one`}>
             <Text style={styles.stepText}>＋</Text>
           </Pressable>
@@ -223,9 +234,28 @@ export function Game({ teamNames, target }: { teamNames: [string, string]; targe
 }
 
 const styles = StyleSheet.create({
-  matchup: { alignItems: 'center', gap: 2, paddingVertical: 8 },
-  matchName: { fontSize: 30, fontWeight: '900', textAlign: 'center' },
-  vs: { color: colors.muted, fontSize: 16, fontWeight: '800' },
+  matchup: {
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  matchName: { fontSize: 30, fontFamily: font.bold, textAlign: 'center', lineHeight: 34 },
+  vsBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceHi,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  vs: { color: colors.text, fontSize: 12, fontFamily: font.bold, letterSpacing: 0.5 },
   matchMeta: { color: colors.muted, fontSize: 14, fontWeight: '700', marginTop: 6 },
   intro: { color: colors.text, fontSize: 16, textAlign: 'center', lineHeight: 23 },
   scoreRow: {
@@ -234,25 +264,26 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: radius.md,
-    borderWidth: 2,
-    backgroundColor: colors.surface,
+    borderWidth: 1.5,
   },
-  scoreName: { fontSize: 18, fontWeight: '900' },
+  scoreName: { fontSize: 18, fontFamily: font.bold },
   wonHint: { color: colors.muted, fontSize: 12, marginTop: 2 },
   step: {
     width: 48,
     height: 48,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceHi,
+    borderWidth: 1,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepText: { color: colors.text, fontSize: 26, fontWeight: '900' },
-  scoreNum: { fontSize: 40, fontWeight: '900', minWidth: 56, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  stepText: { color: colors.text, fontSize: 26, fontFamily: font.bold },
+  scoreNum: { fontSize: 40, fontFamily: font.bold, minWidth: 56, textAlign: 'center', fontVariant: ['tabular-nums'] },
   problem: { color: colors.orange, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  workout: { gap: 6, borderWidth: 2, borderColor: colors.orange },
-  workoutTitle: { color: colors.orange, fontSize: 20, fontWeight: '900' },
+  workout: { gap: 6, borderWidth: 1.5, borderColor: colors.orange, backgroundColor: alpha(colors.orange, 0.08) },
+  workoutTitle: { color: colors.orange, fontSize: 20, fontFamily: font.bold },
   workoutText: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 25 },
-  wheelResult: { color: colors.pink, fontSize: 16, fontWeight: '800', marginTop: 4 },
+  wheelResult: { color: colors.pink, fontSize: 16, fontFamily: font.semi, marginTop: 4 },
   row: { flexDirection: 'row', gap: 10 },
 });

@@ -9,7 +9,7 @@ import { visibleHistory } from '../monetization/entitlements';
 import { goBack, openPaywall } from '../navigation';
 import type { GameRecord } from '../storage';
 import { Button, Card, Label, Screen, Takeover } from '../ui/components';
-import { colors } from '../ui/theme';
+import { colors, font } from '../ui/theme';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -234,7 +234,7 @@ function LockedCrewStats() {
         <Text style={styles.line}>🔥 Win streaks</Text>
         <Text style={styles.line}>💀 Hall of Shame</Text>
         <Text style={styles.line}>📣 Weekly recaps to post in the group chat</Text>
-        <Text style={[styles.line, { color: colors.pink, fontWeight: '800' }]}>Unlock with Pro →</Text>
+        <Text style={[styles.line, { color: colors.pink, fontFamily: font.semi }]}>Unlock with Pro →</Text>
       </Card>
     </Pressable>
   );
@@ -253,13 +253,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   undoText: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  undoAction: { color: colors.pickle, fontSize: 16, fontWeight: '900' },
-  rank: { width: 32, fontSize: 20, color: colors.muted, fontWeight: '800' },
-  name: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '800' },
-  record: { color: colors.muted, fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  undoAction: { color: colors.pickle, fontSize: 16, fontFamily: font.bold },
+  rank: { width: 32, fontSize: 20, color: colors.muted, fontFamily: font.semi },
+  name: { flex: 1, color: colors.text, fontSize: 18, fontFamily: font.semi },
+  record: { color: colors.muted, fontSize: 16, fontFamily: font.semi, fontVariant: ['tabular-nums'] },
   game: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
   empty: { color: colors.muted, fontSize: 18, fontWeight: '700' },
-  big: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  big: { color: colors.text, fontSize: 20, fontFamily: font.bold },
   line: { color: colors.muted, fontSize: 15, fontWeight: '600' },
-  lockLine: { color: colors.pink, fontSize: 14, fontWeight: '800', paddingTop: 8 },
+  lockLine: { color: colors.pink, fontSize: 14, fontFamily: font.semi, paddingTop: 8 },
 });

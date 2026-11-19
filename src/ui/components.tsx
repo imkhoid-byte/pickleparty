@@ -1,6 +1,8 @@
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode } from 'react';
 import {
+  Animated,
   Image,
   ImageSourcePropType,
   Modal,
@@ -16,7 +18,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { playSound } from '../audio/announcer';
-import { colors, radius } from './theme';
+import { Appear, Confetti, Pop, PopIn, usePressScale } from './motion';
+import { alpha, colors, font, glow, gradients, lift, radius } from './theme';
 
 /** The player's choices for how taps feel and sound (kept in step with settings by AppState). */
 let feedback = { sound: true, haptics: true };
@@ -48,6 +51,17 @@ export function click() {
   if (feedback.sound) playSound('tap');
 }
 
+/** The page behind every screen: floodlit at the top, fading to night. */
+export function Backdrop() {
+  return (
+    <View pointerEvents="none" style={styles.backdropFill}>
+      <LinearGradient colors={gradients.page} locations={[0, 0.45, 1]} style={styles.backdropFill} />
+      {/* A faint pickle-green glow from the top, like light spilling over the court. */}
+      <LinearGradient colors={[alpha(colors.pickle, 0.1), alpha(colors.pickle, 0)]} style={styles.backdropGlow} />
+    </View>
+  );
+}
+
 export function Screen({
   title,
   onBack,
@@ -61,35 +75,45 @@ export function Screen({
   scroll?: boolean;
   right?: ReactNode;
 }) {
+  const back = usePressScale(0.9);
+  // The whole screen eases in as it arrives.
   const body = scroll ? (
-    <ScrollView contentContainerStyle={styles.scroll}>{children}</ScrollView>
+    <ScrollView contentContainerStyle={styles.scrollGrow} keyboardShouldPersistTaps="handled">
+      <Appear style={styles.scroll}>{children}</Appear>
+    </ScrollView>
   ) : (
-    <View style={[styles.scroll, { flex: 1 }]}>{children}</View>
+    <Appear style={[styles.scroll, { flex: 1 }]}>{children}</Appear>
   );
   return (
     <SafeAreaView style={styles.safe}>
+      <Backdrop />
       {(title || onBack) && (
         <View style={styles.header}>
           {onBack ? (
-            <Pressable
-              onPress={() => {
-                tap();
-                click();
-                onBack();
-              }}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <Text style={styles.back}>‹ Back</Text>
-            </Pressable>
+            <Animated.View style={{ transform: [{ scale: back.scale }] }}>
+              <Pressable
+                onPress={() => {
+                  tap();
+                  click();
+                  onBack();
+                }}
+                onPressIn={back.onPressIn}
+                onPressOut={back.onPressOut}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                style={styles.back}
+              >
+                <Text style={styles.backText}>‹</Text>
+              </Pressable>
+            </Animated.View>
           ) : (
-            <View style={{ width: 60 }} />
+            <View style={styles.headerSide} />
           )}
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
-          <View style={{ minWidth: 60, alignItems: 'flex-end' }}>{right}</View>
+          <View style={[styles.headerSide, { alignItems: 'flex-end' }]}>{right}</View>
         </View>
       )}
       {body}
@@ -98,6 +122,8 @@ export function Screen({
 }
 
 type Variant = 'primary' | 'secondary' | 'pink' | 'ghost';
+
+const FILL: Partial<Record<Variant, readonly [string, string]>> = { primary: gradients.pickle, pink: gradients.pink };
 
 export function Button({
   label,
@@ -114,33 +140,42 @@ export function Button({
   disabled?: boolean;
   small?: boolean;
 }) {
-  const bg = {
-    primary: colors.pickle,
-    secondary: colors.surfaceHi,
-    pink: colors.pink,
-    ghost: 'transparent',
-  }[variant];
-  const fg = variant === 'primary' ? colors.bg : colors.text;
+  const press = usePressScale();
+  const fill = FILL[variant];
+  const fg = variant === 'primary' ? colors.onPickle : variant === 'ghost' ? colors.muted : colors.text;
+  const shape = [styles.button, small && styles.buttonSmall];
+  const text = <Text style={[styles.buttonText, small && styles.buttonTextSmall, { color: fg }]}>{label}</Text>;
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={() => {
-        tap();
-        click();
-        onPress();
-      }}
-      style={({ pressed }) => [
-        styles.button,
-        small && styles.buttonSmall,
-        { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 },
-        variant === 'ghost' && { borderWidth: 2, borderColor: colors.surfaceHi },
-        pressed && { transform: [{ scale: 0.97 }] },
+    <Animated.View
+      style={[
+        small ? styles.buttonSmallWrap : styles.buttonWrap,
+        // Filled buttons glow in their own color; a disabled one goes quiet.
+        fill && !disabled && glow(variant === 'pink' ? colors.pink : colors.pickle),
+        { transform: [{ scale: press.scale }], opacity: disabled ? 0.4 : 1 },
         style,
       ]}
     >
-      <Text style={[styles.buttonText, small && { fontSize: 15 }, { color: fg }]}>{label}</Text>
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={() => {
+          tap();
+          click();
+          onPress();
+        }}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={[styles.buttonPress, small && { borderRadius: radius.sm }]}
+      >
+        {fill ? (
+          <LinearGradient colors={fill} style={shape}>
+            {text}
+          </LinearGradient>
+        ) : (
+          <View style={[shape, variant === 'secondary' ? styles.buttonSecondary : styles.buttonGhost]}>{text}</View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -158,24 +193,32 @@ export function Chip({
   /** A small picture before the label (e.g. an announcer's face). */
   icon?: ImageSourcePropType;
 }) {
+  const press = usePressScale(0.94);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={() => {
-        tap();
-        click();
-        onPress();
-      }}
-      style={[
-        styles.chip,
-        selected ? { backgroundColor: color, borderColor: color } : { borderColor: colors.surfaceHi },
-        icon ? styles.chipWithIcon : null,
-      ]}
-    >
-      {icon ? <Image source={icon} style={styles.chipIcon} accessibilityIgnoresInvertColors /> : null}
-      <Text style={[styles.chipText, { color: selected ? colors.bg : colors.text }]}>{label}</Text>
-    </Pressable>
+    // A chip pops as it's picked.
+    <Pop trigger={selected}>
+      <Animated.View style={{ transform: [{ scale: press.scale }] }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected }}
+          onPress={() => {
+            tap();
+            click();
+            onPress();
+          }}
+          onPressIn={press.onPressIn}
+          onPressOut={press.onPressOut}
+          style={[
+            styles.chip,
+            selected ? [{ backgroundColor: color, borderColor: color }, glow(color)] : styles.chipOff,
+            icon ? styles.chipWithIcon : null,
+          ]}
+        >
+          {icon ? <Image source={icon} style={styles.chipIcon} accessibilityIgnoresInvertColors /> : null}
+          <Text style={[styles.chipText, { color: selected ? colors.onPickle : colors.text }]}>{label}</Text>
+        </Pressable>
+      </Animated.View>
+    </Pop>
   );
 }
 
@@ -208,9 +251,12 @@ export function Takeover({
   footnote,
   hero,
   speaker,
+  confetti,
   onClose,
 }: {
   visible: boolean;
+  /** A burst of confetti as it opens (a sweep, a champion). */
+  confetti?: boolean;
   /** Who's announcing (the Pro announcers' character art), shown at the top. */
   speaker?: { image: ImageSourcePropType; caption: string };
   emoji?: string;
@@ -227,23 +273,34 @@ export function Takeover({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Dismiss">
-        <Pressable style={[styles.takeover, { borderColor: accent }]} onPress={() => {}}>
-          {/* Scrolls when the content is taller than a small phone's screen. */}
-          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.takeoverContent} bounces={false}>
-            {speaker ? <Speaker {...speaker} /> : null}
-            {hero ?? (
-              <>
-                {emoji ? <Text style={styles.takeoverEmoji}>{emoji}</Text> : null}
-                {title ? <Text style={[styles.takeoverTitle, { color: accent }]}>{title}</Text> : null}
-                {body ? <Text style={styles.takeoverBody}>{body}</Text> : null}
-              </>
-            )}
-            <View style={{ gap: 10, alignSelf: 'stretch', marginTop: 8 }}>
-              {children ?? <Button label="Let's go!" onPress={onClose} />}
-            </View>
-            {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
-          </ScrollView>
-        </Pressable>
+        {/* The card lands with a small bounce; the emoji follows a beat later. */}
+        <PopIn style={styles.takeoverWrap}>
+          <Pressable style={[styles.takeover, { borderColor: accent }, glow(accent, 'strong')]} onPress={() => {}}>
+            <LinearGradient colors={gradients.surface} style={styles.takeoverFill} />
+            {/* Scrolls when the content is taller than a small phone's screen. */}
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={styles.takeoverContent} bounces={false}>
+              {speaker ? <Speaker {...speaker} /> : null}
+              {hero ?? (
+                <>
+                  {emoji ? (
+                    <PopIn delay={120}>
+                      <View style={[styles.takeoverHalo, { borderColor: alpha(accent, 0.35) }]}>
+                        <Text style={styles.takeoverEmoji}>{emoji}</Text>
+                      </View>
+                    </PopIn>
+                  ) : null}
+                  {title ? <Text style={[styles.takeoverTitle, { color: accent }]}>{title}</Text> : null}
+                  {body ? <Text style={styles.takeoverBody}>{body}</Text> : null}
+                </>
+              )}
+              <View style={{ gap: 10, alignSelf: 'stretch', marginTop: 10 }}>
+                {children ?? <Button label="Let's go!" onPress={onClose} />}
+              </View>
+              {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
+            </ScrollView>
+          </Pressable>
+        </PopIn>
+        {confetti ? <Confetti /> : null}
       </Pressable>
     </Modal>
   );
@@ -251,75 +308,115 @@ export function Takeover({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  backdropGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
+  scrollGrow: { flexGrow: 1 },
   // Capped and centered, so screens don't stretch edge to edge on a sideways phone, a tablet or a laptop.
-  scroll: { padding: 20, gap: 14, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  scroll: { padding: 20, paddingTop: 12, gap: 14, paddingBottom: 44, width: '100%', maxWidth: 640, alignSelf: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  back: { color: colors.muted, fontSize: 17, fontWeight: '600', width: 60 },
-  title: { color: colors.text, fontSize: 20, fontWeight: '900', flex: 1, textAlign: 'center' },
+  headerSide: { minWidth: 44 },
+  back: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceHi,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  backText: { color: colors.text, fontSize: 28, lineHeight: 30, fontFamily: font.medium, marginTop: -3, marginLeft: -2 },
+  title: { color: colors.text, fontSize: 22, fontFamily: font.bold, flex: 1, textAlign: 'center', letterSpacing: 0.2 },
+  buttonWrap: { borderRadius: radius.md },
+  buttonSmallWrap: { borderRadius: radius.sm },
+  buttonPress: { borderRadius: radius.md, overflow: 'hidden' },
   button: {
-    paddingVertical: 18,
+    minHeight: 58,
+    paddingVertical: 14,
     paddingHorizontal: 22,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonSmall: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.sm },
-  buttonText: { fontSize: 18, fontWeight: '900', letterSpacing: 0.3 },
+  buttonSmall: { minHeight: 42, paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.sm },
+  buttonSecondary: { backgroundColor: colors.surfaceHi, borderWidth: 1, borderColor: colors.line },
+  buttonGhost: { borderWidth: 1.5, borderColor: colors.lineStrong },
+  buttonText: { fontSize: 19, fontFamily: font.bold, letterSpacing: 0.3, textAlign: 'center' },
+  buttonTextSmall: { fontSize: 15, fontFamily: font.semi },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: radius.pill,
-    borderWidth: 2,
+    borderWidth: 1.5,
   },
-  chipText: { fontSize: 15, fontWeight: '800' },
+  chipOff: { backgroundColor: colors.surface, borderColor: colors.line },
+  chipText: { fontSize: 15, fontFamily: font.semi },
   chipWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 5, paddingVertical: 5 },
   chipIcon: { width: 32, height: 32 },
   speaker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  speakerImage: { width: 84, height: 84 },
+  speakerImage: { width: 76, height: 76 },
   speakerCaption: {
     backgroundColor: colors.surfaceHi,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: font.medium,
     borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 12,
     overflow: 'hidden',
   },
   label: {
-    color: colors.muted,
+    color: colors.faint,
     fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontFamily: font.semi,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
-    marginTop: 6,
+    marginTop: 8,
   },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 18, gap: 8 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(10,4,20,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  takeover: {
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    borderWidth: 3,
-    padding: 26,
-    width: '100%',
-    maxWidth: 420,
-    maxHeight: '100%',
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 18,
+    gap: 8,
   },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(8,3,16,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  takeoverWrap: { width: '100%', maxWidth: 420, maxHeight: '100%' },
+  takeover: {
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    padding: 24,
+    maxHeight: '100%',
+    overflow: 'hidden',
+    ...lift,
+  },
+  takeoverFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   takeoverContent: { alignItems: 'center', gap: 10 },
-  takeoverEmoji: { fontSize: 72 },
-  takeoverTitle: { fontSize: 32, fontWeight: '900', textAlign: 'center' },
-  footnote: { color: colors.muted, fontSize: 13, textAlign: 'center' },
-  takeoverBody: { color: colors.text, fontSize: 20, fontWeight: '600', textAlign: 'center', lineHeight: 28 },
+  takeoverHalo: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  takeoverEmoji: { fontSize: 60 },
+  takeoverTitle: { fontSize: 30, fontFamily: font.bold, textAlign: 'center', lineHeight: 36 },
+  footnote: { color: colors.faint, fontSize: 13, textAlign: 'center' },
+  takeoverBody: { color: colors.text, fontSize: 19, fontWeight: '600', textAlign: 'center', lineHeight: 27 },
 });

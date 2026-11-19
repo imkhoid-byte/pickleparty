@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '../AppState';
 import { Chip } from '../ui/components';
-import { colors, radius } from '../ui/theme';
+import { Breathe, usePressScale } from '../ui/motion';
+import { colors, font, glow, gradients, radius } from '../ui/theme';
 import type { Overlay } from './recorder';
 import { ClipStrip, ReplayPreview } from './ReplayViews';
 import type { Replay } from './useReplay';
@@ -18,6 +20,7 @@ export function ReplayPanel({ replay, overlay }: { replay: Replay; overlay: Over
   // The first couple of times filming starts: how to save a clip.
   const [tip, setTip] = useState(false);
   const { supported, on, setOverlay } = replay;
+  const press = usePressScale();
 
   /** The camera started (or didn't): the first-time tip, and remember the choice for next time. */
   const rolling = (ok: boolean) => {
@@ -52,25 +55,36 @@ export function ReplayPanel({ replay, overlay }: { replay: Replay; overlay: Over
   if (!replay.canvas) {
     return (
       <View style={styles.offCard}>
-        <Pressable
-          onPress={filmIt}
-          disabled={replay.starting}
-          style={styles.filmIt}
-          accessibilityRole="button"
-          accessibilityLabel="Film it: start Instant Replay"
-        >
-          <View style={styles.filmDot} />
-          <Text style={styles.filmText}>{replay.starting ? 'Starting the camera…' : 'Film it'}</Text>
-        </Pressable>
-        <Text style={styles.offText}>
-          {replay.error ??
-            'Point the phone at the court (or prop it up). Tap the picture after a great point to save the last 30 seconds.'}
-        </Text>
-        <Chip
-          label={settings.replaySound ? '🎙️ Court sound: on' : '🔇 Court sound: off'}
-          selected={settings.replaySound}
-          onPress={() => updateSettings({ replaySound: !settings.replaySound })}
-        />
+        <View style={styles.offHead}>
+          <Text style={styles.offTitle}>🎬 Instant Replay</Text>
+          <Text style={styles.offText}>
+            {replay.error ??
+              'Point the phone at the court (or prop it up). Tap the picture after a great point to save the last 30 seconds.'}
+          </Text>
+        </View>
+        <View style={styles.offActions}>
+          <Animated.View style={[styles.filmWrap, { transform: [{ scale: press.scale }] }]}>
+            <Pressable
+              onPress={filmIt}
+              onPressIn={press.onPressIn}
+              onPressOut={press.onPressOut}
+              disabled={replay.starting}
+              accessibilityRole="button"
+              accessibilityLabel="Film it: start Instant Replay"
+            >
+              <LinearGradient colors={gradients.danger} style={styles.filmIt}>
+                {/* The record dot breathes, like a camera waiting to roll. */}
+                <Breathe style={styles.filmDot} />
+                <Text style={styles.filmText}>{replay.starting ? 'Starting the camera…' : 'Film it'}</Text>
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+          <Chip
+            label={settings.replaySound ? '🎙️ Court sound: on' : '🔇 Court sound: off'}
+            selected={settings.replaySound}
+            onPress={() => updateSettings({ replaySound: !settings.replaySound })}
+          />
+        </View>
         {settings.replaySound && (
           <Text style={styles.note}>On some iPhones, recording sound makes the announcer quieter.</Text>
         )}
@@ -109,34 +123,36 @@ export function okToLeave(replay: Replay): boolean {
 
 const styles = StyleSheet.create({
   offCard: {
-    alignItems: 'center',
-    gap: 10,
+    gap: 14,
     padding: 16,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.danger,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
   },
+  offHead: { gap: 4 },
+  offTitle: { color: colors.text, fontSize: 18, fontFamily: font.bold },
+  offActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  filmWrap: { borderRadius: radius.pill, ...glow(colors.danger) },
   filmIt: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
-    paddingHorizontal: 26,
+    paddingHorizontal: 24,
     borderRadius: radius.pill,
-    backgroundColor: colors.danger,
   },
   filmDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#fff' },
-  filmText: { color: '#fff', fontSize: 18, fontWeight: '900' },
-  offText: { color: colors.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  note: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  filmText: { color: '#fff', fontSize: 18, fontFamily: font.bold },
+  offText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  note: { color: colors.faint, fontSize: 12 },
   onWrap: { gap: 10, alignItems: 'stretch' },
   tip: {
     alignSelf: 'center',
     backgroundColor: colors.sky,
     color: colors.bg,
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: font.semi,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.sm,
